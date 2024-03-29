@@ -35,8 +35,9 @@ def prepare_model_for_marlin_load(
         logger.info(f"Loading a GPTQ model, detected Marlin serialized format at {model_save_name}.")
         model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=False)
     else:
-        model_save_name, is_cached = quantize_config.get_cache_file_path(quant_method=QUANT_METHOD.GPTQ,
-                                                              checkpoint_format=CHECKPOINT_FORMAT.MARLIN)
+        model_save_name, is_cached = quantize_config.get_cache_file_path(
+            quant_method=QUANT_METHOD.GPTQ, checkpoint_format=CHECKPOINT_FORMAT.MARLIN
+        )
 
         # If GPTQ model has Marlin version cached locally, load from the cached version (no repacking needed).
         if is_cached:
@@ -89,26 +90,27 @@ def prepare_model_for_marlin_load(
 # Validate marlin support
 def _validate_marlin_device_support() -> Tuple[bool, bool]:
     """
-        Validates if the current device is compatible and optimized for Marlin.
-        ref: https://github.com/IST-DASLab/marlin?tab=readme-ov-file#requirements
+    Validates if the current device is compatible and optimized for Marlin.
+    ref: https://github.com/IST-DASLab/marlin?tab=readme-ov-file#requirements
 
-        Returns:
-            Tuple[bool, bool]: The first indicates if CUDA device is compatible for Marlin,
-                               the second indicates if CUDA device is optimized for Marlin.
-        """
+    Returns:
+        Tuple[bool, bool]: The first indicates if CUDA device is compatible for Marlin,
+                           the second indicates if CUDA device is validated for Marlin.
+    """
     supported = False
-    optimized = False
+    validated = False
 
-    # >=hopper is compatible but not optimized
+    # >=hopper has partial support
+    # ref https://github.com/IST-DASLab/marlin/issues/7
+    # ref https://github.com/IST-DASLab/marlin/issues/6
     if torch.cuda.get_device_capability()[0] >= 9:
         supported = True
-        optimized = False
-    # ampere and ada are supported and optimized
+    # ampere and ada are fully validated
     elif torch.cuda.get_device_capability()[0] >= 8:
         supported = True
-        optimized = True
+        validated = True
 
-    return supported, optimized
+    return supported, validated
 
 
 # Adapted from https://github.com/rib-2/marlin/tree/conversion
@@ -129,7 +131,9 @@ def _validate_marlin_compatibility(cfg: BaseQuantizeConfig):
 
 
 @torch.no_grad()
-def convert_to_marlin(model, model_quantlinear, quantization_config: BaseQuantizeConfig, repack: bool, strict: bool = False):
+def convert_to_marlin(
+    model, model_quantlinear, quantization_config: BaseQuantizeConfig, repack: bool, strict: bool = False
+):
     """
     Converts GPTQ-packed weights to the Marlin format. This assumes that the model already meets Marlin kernel constraints.
 
@@ -177,7 +181,6 @@ def convert_to_marlin(model, model_quantlinear, quantization_config: BaseQuantiz
                         "Marlin kernel is compatible only with checkpoints using symmetric quantization."
                         "Found non-symmetric quantization for the weight {name}."
                     )
-
 
             _, _scale_perm, _scale_perm_single = _get_perms()
 

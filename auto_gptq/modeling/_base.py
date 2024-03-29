@@ -185,7 +185,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             raise EnvironmentError("can't execute quantize because the model is quantized.")
 
         if self.quantize_config.quant_method in QUANTIZE_BLACK_LIST:
-            raise ValueError(f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}")
+            raise ValueError(
+                f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}"
+            )
 
         if use_triton and not TRITON_AVAILABLE:
             logger.warning("triton is not installed, reset use_triton to False")
@@ -216,6 +218,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         cur_layer_device = get_device(layers[0])
         data_device = cur_layer_device if cache_examples_on_gpu else CPU
+
         def store_input_hook(_, args, kwargs):
             # Positional arguments.
             layer_input = []
@@ -371,7 +374,10 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             del layer
             del gptq
             del layer_inputs
-            layer_inputs, layer_outputs = layer_outputs, []  # TODO: is it really OK to cache only the first positional argument?
+            layer_inputs, layer_outputs = (
+                layer_outputs,
+                [],
+            )  # TODO: is it really OK to cache only the first positional argument?
             torch.cuda.empty_cache()
 
         pack_model(
@@ -747,9 +753,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             logger.warning("Qigen is not installed, reset use_qigen to False.")
             use_qigen = False
         if use_triton and use_tritonv2:
-            logging.warn(
-                "Both use_triton and use_tritonv2 are set to True. Defaulting to use_triton"
-            )
+            logging.warn("Both use_triton and use_tritonv2 are set to True. Defaulting to use_triton")
             use_tritonv2 = False
         if (use_triton or use_tritonv2) and not TRITON_AVAILABLE:
             logger.warning("Triton is not installed, reset use_triton to False.")
@@ -807,7 +811,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             raise TypeError(f"{config.model_type} isn't supported yet.")
 
         if quantize_config is None:
-            quantize_config = BaseQuantizeConfig.from_pretrained(model_name_or_path, checkpoint_format=checkpoint_format, **cached_file_kwargs, **kwargs)
+            quantize_config = BaseQuantizeConfig.from_pretrained(
+                model_name_or_path, checkpoint_format=checkpoint_format, **cached_file_kwargs, **kwargs
+            )
         else:
             if not isinstance(quantize_config, BaseQuantizeConfig):
                 quantize_config = BaseQuantizeConfig.from_quant_config(quantize_config, checkpoint_format)
@@ -816,12 +822,12 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             # format marlin requires marlin kernel
             use_marlin = True
 
-        marlin_compatible, marlin_optimized = _validate_marlin_device_support()
+        marlin_compatible, marlin_validated = _validate_marlin_device_support()
         if use_marlin and (not MARLIN_AVAILABLE or not marlin_compatible):
             raise TypeError("use_marlin is true but Marlin is not availble due to cuda/device support.")
-        elif use_marlin and not marlin_optimized:
-            logger.info(
-                "use_marlin is true and your gpu device is supported but not optimized for Marlin."
+        elif use_marlin and not marlin_validated:
+            logger.warning(
+                "use_marlin is true but your gpu device is not validated for Marlin and may exhibit errors."
             )
 
         if not use_marlin and MARLIN_AVAILABLE:
@@ -853,7 +859,12 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         model_name_or_path = str(model_name_or_path)
 
         # Retrieve (and if necessary download) the quantized checkpoint(s).
-        is_sharded, resolved_archive_file, true_model_basename = get_checkpoints(model_name_or_path=model_name_or_path, extensions=extensions, possible_model_basenames=possible_model_basenames, **cached_file_kwargs)
+        is_sharded, resolved_archive_file, true_model_basename = get_checkpoints(
+            model_name_or_path=model_name_or_path,
+            extensions=extensions,
+            possible_model_basenames=possible_model_basenames,
+            **cached_file_kwargs,
+        )
 
         quantize_config.model_file_base_name = true_model_basename
 
@@ -976,7 +987,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             # TODO: move this logic in an awq_utils.py file.
             if quantize_config.checkpoint_format == CHECKPOINT_FORMAT.AWQ_GEMM:
                 if is_sharded:
-                    raise ValueError("The loading of sharded checkpoints with AWQ checkpoints is currently not supported. Please raise an issue in AutoGPTQ repository.")
+                    raise ValueError(
+                        "The loading of sharded checkpoints with AWQ checkpoints is currently not supported. Please raise an issue in AutoGPTQ repository."
+                    )
 
                 if use_marlin:
                     raise ValueError(
@@ -1065,11 +1078,17 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
             if use_marlin:
                 if is_sharded:
-                    raise ValueError("The loading of sharded checkpoints with Marlin is currently not supported. Please raise an issue in AutoGPTQ repository.")
+                    raise ValueError(
+                        "The loading of sharded checkpoints with Marlin is currently not supported. Please raise an issue in AutoGPTQ repository."
+                    )
                 if torch.version.hip:
-                    raise ValueError("Can not use Marlin int4*fp16 kernel with AMD ROCm version of PyTorch as the kernel is not compatible. Please do not use `use_marlin=True` when using ROCm devices.")
+                    raise ValueError(
+                        "Can not use Marlin int4*fp16 kernel with AMD ROCm version of PyTorch as the kernel is not compatible. Please do not use `use_marlin=True` when using ROCm devices."
+                    )
                 if not _validate_marlin_device_support():
-                    raise ValueError(f'Can not use Marlin int4*fp16 kernel with a device of compute capability {torch.cuda.get_device_capability()}, the minimum compute capability is 8.0 for Marlin kernel. Please do not use `use_marlin=True`, or please upgrade your GPU ("The more you buy, the more you save." - Taiwanese proverb).')
+                    raise ValueError(
+                        f'Can not use Marlin int4*fp16 kernel with a device of compute capability {torch.cuda.get_device_capability()}, the minimum compute capability is 8.0 for Marlin kernel. Please do not use `use_marlin=True`, or please upgrade your GPU ("The more you buy, the more you save." - Taiwanese proverb).'
+                    )
 
                 # Validate the model can run in Marlin.
                 if torch_dtype != torch.float16:
@@ -1128,7 +1147,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             # Using QiGen.
 
             if is_sharded:
-                raise ValueError("The loading of sharded checkpoints with QiGen is currently not supported. Please raise an issue in AutoGPTQ repository.")
+                raise ValueError(
+                    "The loading of sharded checkpoints with QiGen is currently not supported. Please raise an issue in AutoGPTQ repository."
+                )
 
             if quantize_config.desc_act:
                 NotImplementedError("desc_act=True is not yet supported with QiGen.")
@@ -1287,9 +1308,16 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
     ):
         GeneralQuantLinear.inject_to_model(
             model,
-            dynamically_import_QuantLinear(use_triton, desc_act, group_size, bits=bits, disable_exllama=disable_exllama,
-                                           disable_exllamav2=disable_exllamav2,
-                                           use_marlin=use_marlin, use_qigen=use_qigen),
+            dynamically_import_QuantLinear(
+                use_triton,
+                desc_act,
+                group_size,
+                bits=bits,
+                disable_exllama=disable_exllama,
+                disable_exllamav2=disable_exllamav2,
+                use_marlin=use_marlin,
+                use_qigen=use_qigen,
+            ),
         )
 
     def __getattr__(self, item):
