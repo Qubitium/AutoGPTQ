@@ -4,6 +4,7 @@ import os
 from os.path import isdir, join
 from typing import Dict, List, Optional, Union
 
+from tabulate import tabulate
 import accelerate
 import torch
 import torch.nn as nn
@@ -299,7 +300,11 @@ os.environ['NUMEXPR_MAX_THREADS'] = max_threads
         inside_layer_modules = self.inside_layer_modules
         if not self.quantize_config.true_sequential:
             inside_layer_modules = [sum(inside_layer_modules, [])]
+
         quantizers = {}
+        # stores all per-layer quant stats such as avg loss and processing time
+        _quant_log = []
+
         for i in range(len(layers)):
             logger.info(f"Start quantizing layer {i + 1}/{len(layers)}")
             layer = layers[i]
@@ -352,7 +357,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = max_threads
 
                 for name in subset:
                     logger.info(f"Quantizing {name} in layer {i + 1}/{len(layers)}...")
-                    scale, zero, g_idx = gptq[name].fasterquant(
+                    scale, zero, g_idx, duration, avg_loss = gptq[name].fasterquant(
                         percdamp=self.quantize_config.damp_percent,
                         group_size=self.quantize_config.group_size,
                         actorder=self.quantize_config.desc_act,
@@ -365,6 +370,11 @@ os.environ['NUMEXPR_MAX_THREADS'] = max_threads
                         move_to_device(g_idx, CPU if force_layer_back_to_cpu else cur_layer_device),
                     )
                     gptq[name].free()
+
+                    stat = {"layer": i + 1, "name": name, "avg_loss": avg_loss, "time": duration}
+                    _quant_log.append(stat)
+                    logger.info("\n" + tabulate(_quant_log[-1:], headers="keys", tablefmt='grid', floatfmt=".6f"))
+
 
             for j in range(num_batches):
                 layer_input = []
@@ -411,6 +421,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = max_threads
         self._quantized = True
 
         torch.cuda.empty_cache()
+        return _quant_log
 
     @property
     def device(self):
