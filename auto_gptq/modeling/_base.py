@@ -523,6 +523,8 @@ os.environ['NUMEXPR_MAX_THREADS'] = max_threads
         """save quantized model and configs to local disk"""
         os.makedirs(save_dir, exist_ok=True)
 
+        self.quantize_config.meta_set_version()
+
         if not self.quantized:
             raise EnvironmentError("can only save quantized model, please execute .quantize first.")
 

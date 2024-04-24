@@ -1,10 +1,11 @@
 import json
 import logging
 import os
+from auto_gptq import __version__
 from dataclasses import dataclass, field, fields
+from distutils.version import LooseVersion
 from os.path import isdir, join
-from typing import Optional
-
+from typing import Optional, Dict, Any, Tuple
 import huggingface_hub
 from transformers.utils.hub import PushToHubMixin, cached_file
 
@@ -21,6 +22,12 @@ CHECKPOINT_FORMAT_FIELD = "checkpoint_format"
 CHECKPOINT_FORMAT_FIELD_COMPAT_MARLIN = "is_marlin_format"
 QUANT_METHOD_FIELD = "quant_method"
 QUANT_CONFIG_FILENAME = "quantize_config.json"
+
+META_FIELD = "meta"
+META_PRODUCER_NAME = "autogptq"
+META_PRODUCER_FIELD = "quantizer"
+
+MIN_VERSION_WITH_V2 = "0.8.1"
 
 
 # checkpoint formats
@@ -69,6 +76,9 @@ class BaseQuantizeConfig(PushToHubMixin):
     checkpoint_format: str = field(default=CHECKPOINT_FORMAT.GPTQ)
     model_name_or_path: Optional[str] = field(default=None)
     model_file_base_name: Optional[str] = field(default=None)
+    # properties that do not directly relates to autogptq quant or quant inference should be placed in meta
+    # i.e. quantize tool and version, timestamp, etc
+    meta: Optional[Dict[str:Any]] = field(default=None)
 
     def __post_init__(self):
         fields_info = fields(self)
@@ -91,6 +101,40 @@ class BaseQuantizeConfig(PushToHubMixin):
 
         if not (0 < self.damp_percent < 1):
             raise ValueError("damp_percent must between 0 and 1.")
+
+        # validate meta
+        if self.meta is not None:
+            if not isinstance(self.meta, dict):
+                raise ValueError("meta must be a dictionary")
+            for key, value in self.meta.items():
+                if not isinstance(key, str):
+                    raise ValueError("Keys in the meta dictionary must be strings")
+        else:
+            self.meta = {}
+
+    def meta_set(self, key: str, value: Any):
+        self.meta[key] = value
+
+    def meta_get(self, key: str) -> Any:
+        return self.meta.get(key)
+
+    # write autogptq:version info into meta
+    def meta_set_version(self):
+        self.meta_set(META_PRODUCER_FIELD, f"{META_PRODUCER_NAME}:{__version__}")
+
+    # get quantizer tool(producer) and version from meta
+    def meta_get_version(self) -> Tuple[str, str]:
+        val = self.meta_get(META_PRODUCER_FIELD)
+        parts = val.split(":") if val else [None, None]
+        return parts[0].lower(), parts[1].lower() if len(parts) > 1 else None
+
+    # is quantized model producted by autogptq with v2 checkpoint_format
+    def is_produced_by_v2(self) -> bool:
+        producer, version = self.meta_get_version()
+        if producer == META_PRODUCER_NAME and LooseVersion(version) >= LooseVersion(MIN_VERSION_WITH_V2):
+            return True
+        else:
+            return False
 
     def save_pretrained(self, save_dir: str, **kwargs):
         with open(join(save_dir,  QUANT_CONFIG_FILENAME), "w", encoding="utf-8") as f:
@@ -255,4 +299,5 @@ class BaseQuantizeConfig(PushToHubMixin):
             "model_file_base_name": self.model_file_base_name,
             QUANT_METHOD_FIELD: self.quant_method,
             CHECKPOINT_FORMAT_FIELD: self.checkpoint_format,
+            META_FIELD: self.meta,
         }
