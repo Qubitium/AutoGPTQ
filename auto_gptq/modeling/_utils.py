@@ -81,7 +81,6 @@ def make_quant(
     use_cuda_fp16: bool = True,
     desc_act: bool = False,
     trainable: bool = False,
-    use_tritonv2: bool = False,
 ):
     # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
     if disable_exllama is None:
@@ -99,7 +98,6 @@ def make_quant(
         disable_exllama=disable_exllama,
         disable_exllamav2=disable_exllamav2,
         use_qigen=use_qigen,
-        use_tritonv2=use_tritonv2,
     )
 
     if isinstance(module, QuantLinear):
@@ -341,7 +339,6 @@ def pack_model(
         disable_exllama=False,
         disable_exllamav2=True,
         use_marlin=use_marlin,
-        use_tritonv2=use_tritonv2,
     )
 
     if force_layer_back_to_cpu:
