@@ -121,7 +121,6 @@ def make_quant(
                 (not (desc_act) or group_size == -1)
                 and not use_triton
                 and not use_qigen
-                and not use_tritonv2
             ):
                 new_layer = QuantLinear(
                     bits,
@@ -329,7 +328,6 @@ def pack_model(
     warmup_triton: bool = False,
     force_layer_back_to_cpu: bool = False,
     use_marlin: bool = False,
-    use_tritonv2: bool = False,
 ):
     QuantLinear = dynamically_import_QuantLinear(
         use_triton=use_triton,
@@ -574,9 +572,9 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
 
 
 def make_sure_no_tensor_in_meta_device(
-    model, use_triton: bool, desc_act: bool, group_size: int, bits: int, disable_exllama: bool, disable_exllamav2: bool, use_marlin: bool = False, use_tritonv2: bool = False,
+    model, use_triton: bool, desc_act: bool, group_size: int, bits: int, disable_exllama: bool, disable_exllamav2: bool, use_marlin: bool = False,
 ):
-    QuantLinear = dynamically_import_QuantLinear(use_triton, desc_act, group_size, bits=bits, disable_exllama=disable_exllama, disable_exllamav2=disable_exllamav2, use_marlin=use_marlin, use_tritonv2=use_tritonv2)
+    QuantLinear = dynamically_import_QuantLinear(use_triton, desc_act, group_size, bits=bits, disable_exllama=disable_exllama, disable_exllamav2=disable_exllamav2, use_marlin=use_marlin)
     for n, m in model.named_modules():
         if isinstance(m, QuantLinear) and m.bias.device == torch.device("meta"):
             m.register_buffer("bias", torch.zeros((m.outfeatures), dtype=torch.float16, device="cpu"))
