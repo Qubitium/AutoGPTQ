@@ -1208,7 +1208,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             logger.warning("triton is not available, skip warmup stage directly.")
             return
 
-        from ..nn_modules.qlinear.qlinear_triton_v2 import QuantLinear
+        from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
         QuantLinear.warmup(self.model, seqlen=self.model.seqlen)
 
     def enable_trainable_mode(self, enabled: bool = True):
