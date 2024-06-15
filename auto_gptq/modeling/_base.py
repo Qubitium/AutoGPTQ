@@ -24,7 +24,6 @@ from transformers.utils.hub import (
     create_repo,
 )
 
-from ..nn_modules._fused_base import FusedBaseAttentionModule, FusedBaseMLPModule
 from ..nn_modules.qlinear import GeneralQuantLinear
 from ..quantization import GPTQ, BaseQuantizeConfig
 from ..quantization.config import (
@@ -97,9 +96,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
     outside_layer_modules: List[str] = None
     inside_layer_modules: List[List[str]] = None
     lm_head_name: str = "lm_head"
-
-    fused_attn_module_type: Optional[FusedBaseAttentionModule] = None
-    fused_mlp_module_type: Optional[FusedBaseMLPModule] = None
 
     def __init__(
         self,
@@ -785,8 +781,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         use_qigen: bool = False,
         use_marlin: bool = False,
         torch_dtype: Optional[torch.dtype] = None,
-        inject_fused_attention: bool = False,
-        inject_fused_mlp: bool = False,
         use_cuda_fp16: bool = True,
         quantize_config: Optional[BaseQuantizeConfig] = None,
         model_basename: Optional[str] = None,
@@ -865,8 +859,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if use_qigen and QIGEN_AVAILABLE:
             logger.warning("QIgen is active. Ignores all settings related to cuda.")
-            inject_fused_attention = False
-            inject_fused_mlp = False
             use_triton = False
             disable_exllama = True
             disable_exllamav2 = True
@@ -1186,13 +1178,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                     device_map=device_map,
                 )
 
-                # Disable incompatible optimizations.
-                if inject_fused_attention or inject_fused_mlp:
-                    # TODO: Validate whether that can be used.
-                    logger.info("Disabling fused attention and mlp injection because Marlin kernel is used.")
-                    inject_fused_attention = False
-                    inject_fused_mlp = False
-
             accelerate.utils.modeling.load_checkpoint_in_model(
                 model,
                 dtype=torch_dtype,  # This is very hacky but works due to https://github.com/huggingface/accelerate/blob/bd72a5f1a80d5146554458823f8aeda0a9db5297/src/accelerate/utils/modeling.py#L292
@@ -1290,33 +1275,8 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             logger.warning("can't get model's sequence length from model config, will set to 4096.")
             model.seqlen = 4096
 
-        # == step5: (optional) inject optimized module == #
-        if inject_fused_attention:
-            if cls.fused_attn_module_type is None:
-                inject_fused_attention = False
-                logger.warning(f"{cls.__name__} hasn't fused attention module yet, will skip inject fused attention.")
-            else:
-                cls.fused_attn_module_type.inject_to_model(
-                    model,
-                    use_triton=use_triton,
-                    group_size=quantize_config.group_size,
-                    use_cuda_fp16=use_cuda_fp16,
-                    desc_act=quantize_config.desc_act,
-                    trainable=trainable,
-                    bits=quantize_config.bits,
-                    disable_exllama=disable_exllama,
-                    disable_exllamav2=disable_exllamav2,
-                )
-        if inject_fused_mlp:
-            if cls.fused_mlp_module_type is None:
-                inject_fused_mlp = False
-                logger.warning(f"{cls.__name__} hasn't fused mlp module yet, will skip inject fused mlp.")
-            else:
-                cls.fused_mlp_module_type.inject_to_model(model, use_triton=use_triton)
-
         # Any post-initialization that require device information, for example buffers initialization on device.
         model = autogptq_post_init(model, use_act_order=quantize_config.desc_act)
-
         model.eval()
 
         # == step6: (optional) warmup triton == #
@@ -1354,11 +1314,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             return
 
         from ..nn_modules.qlinear.qlinear_triton import QuantLinear
-
         QuantLinear.warmup(self.model, seqlen=self.model.seqlen)
-
-        if self.fused_mlp_module_type is not None:
-            self.fused_mlp_module_type.warmup(self.model, seqlen=self.model.seqlen)
 
     def enable_trainable_mode(self, enabled: bool = True):
         if not self.is_triton_backend and enabled:
