@@ -126,7 +126,7 @@ requirements = [
     "gekko",
     "torch>=2.1.0",
     "safetensors>=0.4.3",
-    "transformers>=4.31.0",
+    "transformers>=4.41.2",
     "tqdm",
     "threadpoolctl",
     "packaging",
