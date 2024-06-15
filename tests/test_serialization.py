@@ -1,7 +1,6 @@
 import json
 import os
 import tempfile
-import time
 import unittest
 
 from auto_gptq import AutoGPTQForCausalLM
@@ -25,10 +24,7 @@ class TestSerialization(unittest.TestCase):
             os.remove(model_cache_path)
 
     def test_marlin_local_serialization(self):
-        start = time.time()
         model = AutoGPTQForCausalLM.from_quantized(self.MODEL_ID, device="cuda:0", use_marlin=True)
-        end = time.time()
-        first_load_time = end - start
 
         with tempfile.TemporaryDirectory() as tmpdir:
             model.save_pretrained(tmpdir)
@@ -40,35 +36,18 @@ class TestSerialization(unittest.TestCase):
 
             self.assertTrue(config[CHECKPOINT_FORMAT_FIELD] == CHECKPOINT_FORMAT.MARLIN)
 
-            start = time.time()
             model = AutoGPTQForCausalLM.from_quantized(tmpdir, device="cuda:0", use_marlin=True)
-            end = time.time()
-            second_load_time = end - start
-
-        # disable extremely flaky condition on noisy vm or system with non-cached io
-        # Since we use a CUDA kernel to repack weights, the first load time is already small.
-        # self.assertTrue(second_load_time < first_load_time)
 
     def test_marlin_hf_cache_serialization(self):
-        start = time.time()
         model = AutoGPTQForCausalLM.from_quantized(self.MODEL_ID, device="cuda:0", use_marlin=True)
         self.assertTrue(model.quantize_config.checkpoint_format == CHECKPOINT_FORMAT.MARLIN)
-        end = time.time()
-        first_load_time = end - start
 
         model_cache_path, is_cached = model.quantize_config.get_cache_file_path()
         self.assertTrue("assets" in model_cache_path)
         self.assertTrue(is_cached)
 
-        start = time.time()
         model = AutoGPTQForCausalLM.from_quantized(self.MODEL_ID, device="cuda:0", use_marlin=True)
         self.assertTrue(model.quantize_config.checkpoint_format == CHECKPOINT_FORMAT.MARLIN)
-        end = time.time()
-        second_load_time = end - start
-
-        # disable extremely flaky condition on noisy vm or system with non-cached io
-        # Since we use a CUDA kernel to repack weights, the first load time is already small.
-        # self.assertTrue(second_load_time < first_load_time)
 
     def test_gptq_v1_to_v2_runtime_convert(self):
         model = AutoGPTQForCausalLM.from_quantized(self.MODEL_ID, device="cuda:0")
