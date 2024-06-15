@@ -1191,19 +1191,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
             QuantLinear.warmup(model, seqlen=model.seqlen)
 
-        # == step7: make model compatible with peft
-        # cls.make_sure_compatible_with_peft(
-        #     model,
-        #     use_triton,
-        #     quantize_config.desc_act,
-        #     quantize_config.group_size,
-        #     bits=quantize_config.bits,
-        #     disable_exllama=disable_exllama,
-        #     disable_exllamav2=disable_exllamav2,
-        #     use_marlin=use_marlin,
-        #     use_qigen=use_qigen,
-        # )
-
         return cls(
             model,
             True,
@@ -1233,24 +1220,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
     def disable_trainable_mode(self):
         self.enable_trainable_mode(enabled=False)
 
-    @staticmethod
-    def make_sure_compatible_with_peft(
-        model: PreTrainedModel,
-        use_triton: bool,
-        desc_act: bool,
-        group_size: int,
-        bits: int,
-        disable_exllama: bool = True,
-        disable_exllamav2: bool = False,
-        use_marlin: bool = False,
-        use_qigen: bool = False,
-    ):
-        GeneralQuantLinear.inject_to_model(
-            model,
-            dynamically_import_QuantLinear(use_triton, desc_act, group_size, bits=bits, disable_exllama=disable_exllama,
-                                           disable_exllamav2=disable_exllamav2,
-                                           use_marlin=use_marlin, use_qigen=use_qigen),
-        )
 
     def __getattr__(self, item):
         try:
