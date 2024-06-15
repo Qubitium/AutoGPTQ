@@ -7,36 +7,30 @@ from packaging.version import parse as parse_version
 
 try:
     import triton  # noqa: F401
-
     TRITON_AVAILABLE = True
 except ImportError:
     TRITON_AVAILABLE = False
 
 try:
     import autogptq_cuda_64  # noqa: F401
-
     AUTOGPTQ_CUDA_AVAILABLE = True
 except Exception:
     AUTOGPTQ_CUDA_AVAILABLE = False
 
-
 try:
     import exllama_kernels  # noqa: F401
-
     EXLLAMA_KERNELS_AVAILABLE = True
 except Exception:
     EXLLAMA_KERNELS_AVAILABLE = False
 
 try:
     import exllamav2_kernels  # noqa: F401
-
     EXLLAMAV2_KERNELS_AVAILABLE = True
 except Exception:
     EXLLAMAV2_KERNELS_AVAILABLE = False
 
 try:
     import cQIGen  # noqa: F401
-
     QIGEN_AVAILABLE = True
     QIGEN_EXCEPTION = None
 except Exception as e:
@@ -45,7 +39,6 @@ except Exception as e:
 
 try:
     import autogptq_marlin_cuda  # noqa: F401
-
     MARLIN_AVAILABLE = True
     MARLIN_EXCEPTION = None
 except Exception as e:
@@ -65,7 +58,6 @@ def dynamically_import_QuantLinear(
     disable_exllamav2: bool = False,
     use_qigen: bool = False,
     use_marlin: bool = False,
-    use_tritonv2: bool = False,
 ):
     if use_qigen:
         if not QIGEN_AVAILABLE:
@@ -74,16 +66,14 @@ def dynamically_import_QuantLinear(
             )
         from ..nn_modules.qlinear.qlinear_qigen import QuantLinear
     else:
-        if use_triton or use_tritonv2:
+        if use_triton:
             if torch.version.hip:
                 logger.warning(
                     "Running GPTQ triton version on AMD GPUs is untested and may result in errors or wrong predictions. Please use use_triton=False."
                 )
-            if use_tritonv2:
-                logger.debug("Using tritonv2 for GPTQ")
-                from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
-            else:
-                from ..nn_modules.qlinear.qlinear_triton import QuantLinear
+
+            logger.debug("Using tritonv2 for GPTQ")
+            from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
         else:
             # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
             if disable_exllama is None:
