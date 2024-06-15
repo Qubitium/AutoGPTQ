@@ -182,20 +182,20 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         cache_examples_on_gpu: bool = True,
     ):
         if self.quantized:
-            raise EnvironmentError("can't execute quantize because the model is quantized.")
+            raise EnvironmentError("Quantize called but model is already quantized.")
 
         if self.quantize_config.quant_method in QUANTIZE_BLACK_LIST:
             raise ValueError(f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}")
 
         if use_triton and not TRITON_AVAILABLE:
-            logger.warning("triton is not installed, reset use_triton to False")
+            logger.warning("Triton is not installed, force use_triton to False")
             use_triton = False
 
         device_map = self.hf_device_map
         if device_map:
             for name, device in device_map.items():
                 if device == "cpu":
-                    logger.info(f"truly offloading {name} to cpu with hook.")
+                    logger.info(f"Offloading {name} to cpu with hook.")
                     module = get_module_by_name_suffix(self.model, name)
                     remove_hook_from_module(module, recurse=True)
                     accelerate.cpu_offload_with_hook(module, CUDA_0)
@@ -451,7 +451,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         save_dir: Optional[str] = None,
         use_safetensors: Optional[bool] = True,
         safetensors_metadata: Optional[Dict[str, str]] = None,
-        commit_message: Optional[str] = "Upload of AutoGPTQ quantized model",
+        commit_message: Optional[str] = "Upload of AutoModelQuant quantized model",
         use_auth_token: Optional[Union[bool, str]] = None,
         private: Optional[bool] = None,
         token: Optional[Union[bool, str]] = None,
@@ -639,7 +639,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             # otherwise it raises an OSError
             safetensors_metadata["format"] = "pt"
 
-            safetensors_metadata["auto_gptq_version"] = str(__version__)
+            safetensors_metadata["auto_model_quant_version"] = str(__version__)
             safetensors_metadata["gptq_bits"] = str(quantize_config.bits)
             safetensors_metadata["gptq_group_size"] = str(quantize_config.group_size)
             safetensors_metadata["gptq_desc_act"] = str(quantize_config.desc_act)
@@ -761,7 +761,8 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                     model.seqlen = model_config[key]
                     break
         else:
-            logger.warning("can't get model's sequence length from model config, will set to 4096.")
+            # TODO: this should never happen
+            logger.warning("Can't get model's sequence length from model config, will set to 4096.")
             model.seqlen = 4096
         model.eval()
 
