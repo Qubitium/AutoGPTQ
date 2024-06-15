@@ -451,7 +451,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         save_dir: Optional[str] = None,
         use_safetensors: Optional[bool] = True,
         safetensors_metadata: Optional[Dict[str, str]] = None,
-        commit_message: Optional[str] = "Upload of AutoModelQuant quantized model",
+        commit_message: Optional[str] = "Upload of AutoGPTQForCausalLM quantized model",
         use_auth_token: Optional[Union[bool, str]] = None,
         private: Optional[bool] = None,
         token: Optional[Union[bool, str]] = None,

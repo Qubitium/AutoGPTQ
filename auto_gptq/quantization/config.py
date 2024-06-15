@@ -31,7 +31,7 @@ META_FIELD_QUANTIZER = "quantizer"
 # packer is the tool that packed the weights post quantization
 META_FIELD_PACKER = "packer"
 
-META_QUANTIZER_AUTOGPTQ = "AutoModelQuant"
+META_QUANTIZER_AUTOGPTQ = "auto_gptq"
 
 # checkpoint formats
 class CHECKPOINT_FORMAT:
