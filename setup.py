@@ -128,7 +128,7 @@ requirements = [
     "safetensors>=0.4.3",
     "transformers>=4.41.2",
     "tqdm",
-    "threadpoolctl",
+    "threadpoolctl>=3.5.0",
     "packaging",
 ]
 

@@ -78,7 +78,6 @@ def make_quant(
     disable_exllama: Optional[bool] = None,
     disable_exllamav2: bool = False,
     use_qigen: bool = False,
-    use_cuda_fp16: bool = True,
     desc_act: bool = False,
     trainable: bool = False,
 ):
@@ -128,7 +127,6 @@ def make_quant(
                     in_features,
                     out_features,
                     bias,
-                    use_cuda_fp16=use_cuda_fp16,
                     trainable=trainable,
                     weight_dtype=submodule.weight.dtype,
                 )
@@ -154,6 +152,8 @@ def convert_gptq_v1_to_v2_format(
     use_qigen = qlinear_kernel.QUANT_TYPE == "qigen"
 
     # Limit thread usage to avoid auto-parallizataion regression
+    max_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
     with tctl.threadpool_limits(limits=1):
         for _, submodule in model.named_modules():
             # v1 checkpoint format used to do `qzeros = qzeros -= 1` before serialization, thus the
@@ -177,6 +177,9 @@ def convert_gptq_v1_to_v2_format(
                     else:
                         raise NotImplementedError("Only 2,3,4,8 bits are supported.")
 
+    # restore threads
+    torch.set_num_threads(max_threads)
+
     return model
 
 
@@ -188,6 +191,8 @@ def convert_gptq_v2_to_v1_format(
     use_qigen = qlinear_kernel.QUANT_TYPE == "qigen"
 
     # Limit thread usage to avoid auto-parallizataion regression
+    max_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
     with tctl.threadpool_limits(limits=1):
         for _, submodule in model.named_modules():
             # sym=False has underflow probability of ~<=13% during testing. No underflow possible for sym=True.
@@ -208,6 +213,8 @@ def convert_gptq_v2_to_v1_format(
                     else:
                         raise NotImplementedError("Only 2,3,4,8 bits are supported.")
 
+    # restore threads
+    torch.set_num_threads(max_threads)
     return model
 
 
@@ -323,7 +330,6 @@ def pack_model(
     bits,
     group_size,
     use_triton=False,
-    use_cuda_fp16=True,
     desc_act=False,
     warmup_triton: bool = False,
     force_layer_back_to_cpu: bool = False,
@@ -351,7 +357,6 @@ def pack_model(
         bits,
         group_size,
         use_triton=use_triton,
-        use_cuda_fp16=use_cuda_fp16,
         desc_act=desc_act,
         disable_exllama=False,
         disable_exllamav2=True,
@@ -360,6 +365,8 @@ def pack_model(
     qlayers = find_layers(model, [QuantLinear])
 
     # Limit pack() thread usage to avoid auto-parallizataion regression
+    max_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
     with tctl.threadpool_limits(limits=1):
         pbar = tqdm(qlayers.keys(), leave=True)
         for name in pbar:
@@ -380,6 +387,9 @@ def pack_model(
             else:
                 qlayers[name].pack(layers[name], scale, zero, g_idx)
             qlayers[name].to(layer_device)
+
+    # restore threads
+    torch.set_num_threads(max_threads)
 
     logger.info("Model packed.")
 
