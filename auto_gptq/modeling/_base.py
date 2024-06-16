@@ -554,7 +554,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if checkpoint_format is not None and quantize_config.checkpoint_format != checkpoint_format:
             # Model qzeros may be edited in place.
             # TODO: avoid inplace modification of the weights
-            model = copy.deepcopy(self.model)
+            # model = copy.deepcopy(self.model)
 
             if checkpoint_format == CHECKPOINT_FORMAT.GPTQ_V2:
                 if quantize_config.checkpoint_format != CHECKPOINT_FORMAT.GPTQ:
@@ -583,7 +583,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if checkpoint_format is None and quantize_config.checkpoint_format == CHECKPOINT_FORMAT.GPTQ:
             # Model qzeros may be edited in place.
             # TODO: avoid inplace modification of the weights
-            model = copy.deepcopy(self.model)
+            # model = copy.deepcopy(self.model)
             model = convert_gptq_v2_to_v1_format(
                 model,
                 quantize_config=quantize_config,
@@ -635,7 +635,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
             # Format is required to enable Accelerate to load the metadata
             # otherwise it raises an OSError
-            safetensors_metadata["format"] = "pt"
+            # safetensors_metadata["format"] = "pt"
 
             safetensors_metadata["auto_model_quant_version"] = str(__version__)
             safetensors_metadata["gptq_bits"] = str(quantize_config.bits)
