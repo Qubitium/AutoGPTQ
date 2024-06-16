@@ -119,22 +119,22 @@ if BUILD_CUDA_EXT:
 
 requirements = [
     "accelerate>=0.31.0",
-    "datasets",
-    "sentencepiece",
-    "numpy",
-    "rouge",
-    "gekko",
-    "torch>=2.1.0",
+    "datasets>=2.20.0",
+    "sentencepiece>=0.2.0",
+    "numpy>=1.26.4",
+    "rouge>=1.0.1",
+    "gekko>=1.1.1",
+    "torch>=2.3.1",
     "safetensors>=0.4.3",
     "transformers>=4.41.2",
-    "tqdm",
+    "tqdm>=4.66.4",
     "threadpoolctl>=3.5.0",
-    "packaging",
+    "packaging>=24.1",
 ]
 
 extras_require = {
-    "triton": ["triton>=2.1.0"],
-    "test": ["pytest>=3.0.0", "parameterized"],
+    "triton": ["triton>=2.3.1"],
+    "test": ["pytest>=8.2.2", "parameterized"],
     "quality": ["ruff==0.1.5"],
 }
 
@@ -215,19 +215,6 @@ if BUILD_CUDA_EXT:
     else:
         extra_link_args = []
 
-    extensions.append(
-        cpp_extension.CUDAExtension(
-            "exllama_kernels",
-            [
-                "autogptq_extension/exllama/exllama_ext.cpp",
-                "autogptq_extension/exllama/cuda_buffers.cu",
-                "autogptq_extension/exllama/cuda_func/column_remap.cu",
-                "autogptq_extension/exllama/cuda_func/q4_matmul.cu",
-                "autogptq_extension/exllama/cuda_func/q4_matrix.cu"
-            ],
-            extra_link_args=extra_link_args
-        )
-    )
     extensions.append(
         cpp_extension.CUDAExtension(
             "exllamav2_kernels",

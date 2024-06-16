@@ -785,17 +785,12 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         warmup_triton: bool = False,
         trainable: bool = False,
         disable_exllama: Optional[bool] = None,
-        disable_exllamav2: bool = False,
         checkpoint_format: Optional[str] = None,
         **kwargs,
     ):
         """load quantized model from local disk"""
-        # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
         if disable_exllama is None:
-            if disable_exllamav2:
-                disable_exllama = False
-            else:
-                disable_exllama = True
+            disable_exllama = False
 
         # Parameters related to loading from Hugging Face Hub
         cache_dir = kwargs.pop("cache_dir", None)
@@ -828,22 +823,14 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             use_triton = False
         if not disable_exllama and not EXLLAMA_KERNELS_AVAILABLE:
             logger.warning(
-                "Exllama kernel is not installed, reset disable_exllama to True. "
+                "Exllamav2 kernel is not installed, reset disable_exllama to True. "
                 "This may because you installed auto_gptq using a pre-build wheel "
                 "on Windows, in which exllama_kernels are not compiled. To use "
                 "exllama_kernels to further speedup inference, you can re-install "
                 "auto_gptq from source."
             )
             disable_exllama = True
-        if not disable_exllamav2 and not EXLLAMAV2_KERNELS_AVAILABLE:
-            logger.warning(
-                "Exllamav2 kernel is not installed, reset disable_exllamav2 to True. "
-                "This may because you installed auto_gptq using a pre-build wheel "
-                "on Windows, in which exllama_kernels are not compiled. To use "
-                "exllama_kernels to further speedup inference, you can re-install "
-                "auto_gptq from source."
-            )
-            disable_exllamav2 = True
+
         if not AUTOGPTQ_CUDA_AVAILABLE:
             logger.warning(
                 "CUDA kernels for auto_gptq are not installed, this will result in "
@@ -856,13 +843,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if use_qigen and QIGEN_AVAILABLE:
             logger.warning("QIgen is active. Ignores all settings related to cuda.")
             use_triton = False
-            disable_exllama = True
-            disable_exllamav2 = True
-
-        if not disable_exllamav2 and not disable_exllama:
-            logger.warning(
-                "You have activated both exllama and exllamav2 kernel. Setting disable_exllama to True and keeping disable_exllamav2 to False"
-            )
             disable_exllama = True
 
         # == step1: prepare configs and file names == #
@@ -924,12 +904,11 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         model_save_name = resolved_archive_file  # In case a model is sharded, this would be `model.safetensors.index.json` which may later break.
 
-        if (not disable_exllama or not disable_exllamav2) and trainable:
+        if not disable_exllama and trainable:
             logger.warning(
                 "QuantLinear with the exllama backend not does support the trainable mode yet, switching to cuda/cuda_old/triton backend."
             )
             disable_exllama = True
-            disable_exllamav2 = True
 
         elif not use_triton and trainable:
             logger.warning(
@@ -985,7 +964,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                     quantize_config.group_size,
                     use_triton=use_triton,
                     disable_exllama=disable_exllama,
-                    disable_exllamav2=disable_exllamav2,
                     desc_act=quantize_config.desc_act,
                     trainable=trainable,
                 )
@@ -1033,7 +1011,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                     quantize_config.group_size,
                     bits=quantize_config.bits,
                     disable_exllama=disable_exllama,
-                    disable_exllamav2=disable_exllamav2,
                 )
 
             if use_marlin:
@@ -1061,7 +1038,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                     group_size=quantize_config.group_size,
                     bits=quantize_config.bits,
                     disable_exllama=disable_exllama,
-                    disable_exllamav2=disable_exllamav2,
                     use_marlin=False,
                 )
 
@@ -1119,7 +1095,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 quantize_config.group_size,
                 use_triton=use_triton,
                 disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
                 desc_act=quantize_config.desc_act,
                 trainable=trainable,
                 use_qigen=True,
@@ -1140,7 +1115,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             group_size=quantize_config.group_size,
             bits=quantize_config.bits,
             disable_exllama=disable_exllama,
-            disable_exllamav2=disable_exllamav2,
             use_qigen=use_qigen,
             use_marlin=use_marlin,
         )

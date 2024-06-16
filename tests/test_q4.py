@@ -1070,8 +1070,7 @@ class TestsQ4Exllama(unittest.TestCase):
             desc_act=False,
             group_size=group_size,
             bits=4,
-            disable_exllama=False,
-            disable_exllamav2=True,
+            disable_exllama=True,
         )
 
         linear = linear_class(
@@ -1136,8 +1135,7 @@ class TestsQ4Exllama(unittest.TestCase):
             device="cuda:0",
             use_triton=False,
             model_basename=model_basename,
-            disable_exllama=False,
-            disable_exllamav2=True,
+            disable_exllama=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -1173,8 +1171,7 @@ class TestsQ4Exllama(unittest.TestCase):
             model_id,
             device="cuda:0",
             use_triton=False,
-            disable_exllama=False,
-            disable_exllamav2=True,
+            disable_exllama=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -1203,8 +1200,7 @@ class TestsQ4Exllama(unittest.TestCase):
             device="cuda:0",
             use_triton=False,
             model_basename=model_basename,
-            disable_exllama=False,
-            disable_exllamav2=True,
+            disable_exllama=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -1760,7 +1756,6 @@ class TestsQ4CUDA(unittest.TestCase):
             group_size=group_size,
             bits=4,
             disable_exllama=True,
-            disable_exllamav2=True,
         )
 
         weight_dtype = torch.float16 if use_half2 else torch.float32
@@ -1827,7 +1822,6 @@ class TestsQ4CUDA(unittest.TestCase):
             use_triton=False,
             model_basename=model_basename,
             disable_exllama=True,
-            disable_exllamav2=True,
             torch_dtype=torch_dtype,
         )
 
@@ -1871,7 +1865,6 @@ class TestsQ4CUDA(unittest.TestCase):
             device=device,
             use_triton=False,
             disable_exllama=True,
-            disable_exllamav2=True,
             torch_dtype=torch_dtype,
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -2094,7 +2087,6 @@ class TestsQ4Triton(unittest.TestCase):
             device="cuda:0",
             use_triton=True,
             disable_exllama=True,
-            disable_exllamav2=True,
             torch_dtype=torch.float16,
         )
         for _, submodule in model_q.named_modules():
@@ -2135,7 +2127,6 @@ class TestsQ4Triton(unittest.TestCase):
             use_triton=True,
             model_basename=model_basename,
             disable_exllama=True,
-            disable_exllamav2=True,
         )
         for _, submodule in model_q.named_modules():
             if isinstance(submodule, TritonV2QuantLinear):
