@@ -594,6 +594,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if torch_dtype == "auto":
             torch_dtype = auto_dtype_from_config(config)
+            config.torch_type = torch_dtype
         elif not isinstance(torch_dtype, torch.dtype):
             raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
 
@@ -706,7 +707,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             disable_exllama = True
 
         # == step1: prepare configs and file names == #
-        config = AutoConfig.from_pretrained(
+        config: PretrainedConfig = AutoConfig.from_pretrained(
             model_name_or_path,
             trust_remote_code=trust_remote_code,
             **cached_file_kwargs,
@@ -714,6 +715,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if torch_dtype == "auto":
             torch_dtype = auto_dtype_from_config(config)
+            config.torch_type = torch_dtype
         elif not isinstance(torch_dtype, torch.dtype):
             raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
 
