@@ -28,11 +28,6 @@ from ..quantization.config import (
 )
 from ..utils.data_utils import collate_data
 from ..utils.import_utils import (
-    AUTOGPTQ_CUDA_AVAILABLE,
-    EXLLAMA_KERNELS_AVAILABLE,
-    EXLLAMAV2_KERNELS_AVAILABLE,
-    MARLIN_AVAILABLE,
-    TRITON_AVAILABLE,
     dynamically_import_QuantLinear,
 )
 from ..utils.marlin_utils import (
@@ -177,10 +172,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             raise ValueError(
                 f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}"
             )
-
-        if use_triton and not TRITON_AVAILABLE:
-            logger.warning("triton is not installed, reset use_triton to False")
-            use_triton = False
 
         device_map = self.hf_device_map
         if device_map:
@@ -469,7 +460,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if format == FORMAT.GPTQ_V2 or (format is None and quantize_config.format == FORMAT.GPTQ_V2):
             logger.warning(
-                f"Using 'checkpoint_format = {FORMAT.GPTQ_V2}': the serialized model is only supported by AutoGPTQ version >= {MIN_VERSION_WITH_V2}."
+                f"Using 'format = {FORMAT.GPTQ_V2}': the serialized model is only supported by AutoGPTQ version >= {MIN_VERSION_WITH_V2}."
             )
 
         if format is not None and quantize_config.format != format:
@@ -480,7 +471,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             if format == FORMAT.GPTQ_V2:
                 if quantize_config.format != FORMAT.GPTQ:
                     raise NotImplementedError(
-                        f"Asked to serialize a model with `checkpoint_format={format}` but the model format is {quantize_config.format}. This is not supported. Please open an issue at https://github.com/AutoGPTQ/AutoGPTQ/issues."
+                        f"Asked to serialize a model with `format={format}` but the model format is {quantize_config.format}. This is not supported. Please open an issue at https://github.com/AutoGPTQ/AutoGPTQ/issues."
                     )
 
                 model = convert_gptq_v1_to_v2_format(
@@ -493,7 +484,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             elif format == FORMAT.GPTQ:
                 if quantize_config.format != FORMAT.GPTQ_V2:
                     raise NotImplementedError(
-                        f"Asked to serialize a model with `checkpoint_format={format}` but the model format is {quantize_config.format}. This is not supported. Please open an issue at https://github.com/AutoGPTQ/AutoGPTQ/issues."
+                        f"Asked to serialize a model with `format={format}` but the model format is {quantize_config.format}. This is not supported. Please open an issue at https://github.com/AutoGPTQ/AutoGPTQ/issues."
                     )
 
                 model = convert_gptq_v2_to_v1_format(
@@ -708,35 +699,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             "_raise_exceptions_for_missing_entries": False,
             "_commit_hash": commit_hash,
         }
-        if use_triton and not TRITON_AVAILABLE:
-            logger.warning("Triton is not installed, reset use_triton to False.")
-            use_triton = False
-        if not disable_exllama and not EXLLAMA_KERNELS_AVAILABLE:
-            logger.warning(
-                "Exllama kernel is not installed, reset disable_exllama to True. "
-                "This may because you installed auto_gptq using a pre-build wheel "
-                "on Windows, in which exllama_kernels are not compiled. To use "
-                "exllama_kernels to further speedup inference, you can re-install "
-                "auto_gptq from source."
-            )
-            disable_exllama = True
-        if not disable_exllamav2 and not EXLLAMAV2_KERNELS_AVAILABLE:
-            logger.warning(
-                "Exllamav2 kernel is not installed, reset disable_exllamav2 to True. "
-                "This may because you installed auto_gptq using a pre-build wheel "
-                "on Windows, in which exllama_kernels are not compiled. To use "
-                "exllama_kernels to further speedup inference, you can re-install "
-                "auto_gptq from source."
-            )
-            disable_exllamav2 = True
-        if not AUTOGPTQ_CUDA_AVAILABLE:
-            logger.warning(
-                "CUDA kernels for auto_gptq are not installed, this will result in "
-                "very slow inference speed. This may because:\n"
-                "1. You disabled CUDA extensions compilation by setting BUILD_CUDA_EXT=0 when install auto_gptq from source.\n"
-                "2. You are using pytorch without CUDA support.\n"
-                "3. CUDA and nvcc are not installed in your device."
-            )
 
         if not disable_exllamav2 and not disable_exllama:
             logger.warning(
@@ -770,10 +732,8 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             use_marlin = True
 
         marlin_compatible = _validate_marlin_device_support()
-        if use_marlin and not MARLIN_AVAILABLE:
-            raise TypeError("use_marlin is true but Marlin is not available due to cuda/device support.")
 
-        if not use_marlin and MARLIN_AVAILABLE:
+        if not use_marlin:
             unsupported_reason = _validate_marlin_compatibility(quantize_config)
             if unsupported_reason is None and marlin_compatible:
                 logger.info(
@@ -966,7 +926,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             #   If stub is marlin serialized         --> load from directly
             #   If stub has cached marlin version   --> load from the cached version
             #   Otherwise                           --> convert to marlin, cache, load from cache
-            model, model_save_name = prepare_model_for_marlin_load(
+            model = prepare_model_for_marlin_load(
                 model=model,
                 quantize_config=quantize_config,
                 quant_linear_class=quant_linear_class,
@@ -1003,10 +963,10 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             # validate sym=False v1 loading needs to be protected for models produced with new v2 format codebase
             if not quantize_config.sym and not quantize_config.is_quantized_or_packed_by_v2():
                 raise ValueError(
-                    f"Loading of a sym=False model with checkpoint_format={FORMAT.GPTQ} is only supported if produced by autogptq version >= {MIN_VERSION_WITH_V2}"
+                    f"Loading of a sym=False model with format={FORMAT.GPTQ} is only supported if produced by autogptq version >= {MIN_VERSION_WITH_V2}"
                 )
 
-            logger.info(f"Compatibility: converting `checkpoint_format` from `{FORMAT.GPTQ}` to `{FORMAT.GPTQ_V2}`.")
+            logger.info(f"Compatibility: converting `format` from `{FORMAT.GPTQ}` to `{FORMAT.GPTQ_V2}`.")
 
             model = convert_gptq_v1_to_v2_format(
                 model,
@@ -1050,9 +1010,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
     def warmup_triton(self, enabled: bool = True):
         if not enabled:
-            return
-        if not TRITON_AVAILABLE:
-            logger.warning("triton is not available, skip warmup stage directly.")
             return
 
         from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear

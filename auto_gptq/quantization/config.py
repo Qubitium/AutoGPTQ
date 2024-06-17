@@ -19,6 +19,7 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 FORMAT_FIELD = "format"
+FORMAT_FIELD_COMPAT = "checkpoint_format"
 FORMAT_FIELD_COMPAT_MARLIN = "is_marlin_format"
 QUANT_METHOD_FIELD = "quant_method"
 QUANT_CONFIG_FILENAME = "quantize_config.json"
@@ -64,7 +65,7 @@ QUANTIZE_BLACK_LIST = {}
 QUANT_CONFIG_ARG_SYNONYMS = {
     "w_bit": "bits",
     "q_group_size": "group_size",
-    "checkpoint_format": "format",
+    FORMAT_FIELD_COMPAT: "format",
 }
 
 
@@ -174,7 +175,7 @@ class BaseQuantizeConfig(PushToHubMixin):
                 raise ValueError(f"Unknown quantization checkpoint format: {format}.")
             if quantize_cfg.get(FORMAT_FIELD):
                 raise ValueError(
-                    "Conflict: quantization checkpoint_format is passed in and also exists in model config."
+                    "Conflict: quantization format is passed in and also exists in model config."
                 )
         # compat: warn if checkpoint_format is missing
         elif quantize_cfg.get(FORMAT_FIELD) is None:
@@ -290,41 +291,22 @@ class BaseQuantizeConfig(PushToHubMixin):
 
             return cls.from_quant_config(args_from_json, format)
 
-    def get_cache_file_path(self, quant_method: QUANT_METHOD = None, format: FORMAT = None):
-        """
-        Gets The Cached Weight Path.
-        If remote:   $HF_HOME/assets/autogptq/{model_name_or_path}/_{quant-method}_{checkpoint_format}.safetensors
-        If local:    {model_name_or_path}/autogptq_model_{quant-method}_{checkpoint_format}.safetensors
-        """
-
-        use_quant_method = quant_method if quant_method else self.quant_method
-        use_format = format if format else self.format
-
-        cache_file_name = f"autogptq_model_v2_{use_quant_method}_{use_format}.safetensors"
-
-        if os.path.isdir(self.model_name_or_path):
-            cache_file_name = os.path.join(self.model_name_or_path, cache_file_name)
-        else:
-            namespace, subfolder = self.model_name_or_path.split("/")
-            assets_path = huggingface_hub.cached_assets_path(
-                library_name="auto_gptq", namespace=namespace, subfolder=subfolder
-            )
-            cache_file_name = os.path.join(assets_path, cache_file_name)
-
-        return cache_file_name, os.path.isfile(cache_file_name)
-
     def to_dict(self):
+        # compact: until format PR is pushed 3rd libs, duplicate checkpoint_format
+        self.meta[FORMAT_FIELD_COMPAT] = self.format
+
+        # move non-inference required variables to meta
+        self.meta["damp_percent"] = self.damp_percent
+        self.meta["true_sequential"] = self.true_sequential
+
         return {
             "bits": self.bits,
             "group_size": self.group_size,
-            # TODO: move to meta since damp and true_sequential does not participate in inference
-            "damp_percent": self.damp_percent,
-            "true_sequential": self.true_sequential,
             "desc_act": self.desc_act,
             "static_groups": self.static_groups,
             "sym": self.sym,
             "lm_head": self.lm_head,
-            # TODO: deprecate
+            # TODO: deprecate?
             "model_name_or_path": self.model_name_or_path,
             "model_file_base_name": self.model_file_base_name,
             QUANT_METHOD_FIELD: self.quant_method,
