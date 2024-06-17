@@ -594,7 +594,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if torch_dtype == "auto":
             torch_dtype = auto_dtype_from_config(config)
-            config.torch_type = torch_dtype
         elif not isinstance(torch_dtype, torch.dtype):
             raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
 
@@ -714,8 +713,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         )
 
         if torch_dtype == "auto":
-            torch_dtype = auto_dtype_from_config(config)
-            config.torch_type = torch_dtype
+            torch_dtype = auto_dtype_from_config(config, quant_inference=True)
         elif not isinstance(torch_dtype, torch.dtype):
             raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
 
