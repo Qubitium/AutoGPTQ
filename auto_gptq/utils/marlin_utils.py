@@ -4,18 +4,14 @@ from logging import getLogger
 import accelerate
 import torch
 from accelerate.utils import find_tied_parameters
-from safetensors.torch import save_file as safe_save
 from tqdm import tqdm
 
 from ..nn_modules.qlinear.qlinear_marlin import QuantLinear as MarlinQuantLinear
 from ..nn_modules.qlinear.qlinear_marlin import _get_perms, unpack_qzeros
-from ..quantization import FORMAT, QUANT_METHOD, BaseQuantizeConfig
-from .import_utils import MARLIN_AVAILABLE, MARLIN_EXCEPTION
+from ..quantization import FORMAT, BaseQuantizeConfig
 from .marlin_sparse24_utils import repack_gptq_to_marlin_sparse24, repack_scales_to_marlin_sparse24
 from .modeling_utils import recurse_getattr, recurse_setattr
 
-if MARLIN_AVAILABLE:
-    import autogptq_marlin_cuda
 
 logger = getLogger(__name__)
 
@@ -85,8 +81,6 @@ def _validate_marlin_device_support() -> bool:
 
 # Adapted from https://github.com/rib-2/marlin/tree/conversion
 def _validate_marlin_compatibility(cfg: BaseQuantizeConfig):
-    if not MARLIN_AVAILABLE:
-        return f"AutoGPTQ is not compiled with the Marlin kernel, with the following error: {MARLIN_EXCEPTION}"
     if cfg.bits != 4 and cfg.bits != 8:
         return f"The quantized model uses a bitwidth different than 4 or 8 (found {cfg.bits})"
     if cfg.group_size != 128 and cfg.group_size != -1:
@@ -250,7 +244,9 @@ def convert_to_marlin_sparse24(
             )
 
             new_module.B_24 = marlin_sparse24_weight
-            new_module.B_meta = marlin_sparse24_meta.resize_(marlin_sparse24_meta.shape[1] // 2, marlin_sparse24_meta.shape[0] * 2)
+            new_module.B_meta = marlin_sparse24_meta.resize_(
+                marlin_sparse24_meta.shape[1] // 2, marlin_sparse24_meta.shape[0] * 2
+            )
             # new_module.B_ref = marlin_w_ref
             new_module.s = marlin_sparse24_scales
             new_module.bias = module.bias
