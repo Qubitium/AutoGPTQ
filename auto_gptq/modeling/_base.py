@@ -158,7 +158,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         examples: List[Dict[str, Union[List[int], torch.LongTensor]]],
         batch_size: int = 1,
         use_triton: bool = False,
-        use_cuda_fp16: bool = True,
         autotune_warmup_after_quantized: bool = False,
         cache_examples_on_gpu: bool = True,
     ):
@@ -389,7 +388,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             bits=self.quantize_config.bits,
             group_size=self.quantize_config.group_size,
             use_triton=use_triton,
-            use_cuda_fp16=use_cuda_fp16,
             desc_act=self.quantize_config.desc_act,
             warmup_triton=autotune_warmup_after_quantized,
             force_layer_back_to_cpu=force_layer_back_to_cpu,
@@ -648,7 +646,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         use_triton: bool = True,
         use_marlin: bool = True,
         torch_dtype: Optional[torch.dtype] = None,
-        use_cuda_fp16: bool = True,
         quantize_config: Optional[BaseQuantizeConfig] = None,
         model_basename: Optional[str] = None,
         use_safetensors: bool = True,
@@ -780,10 +777,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if torch_dtype is None:
             torch_dtype = torch.float16
 
-        if torch_dtype != torch.float16:
-            logger.warning("Overriding use_cuda_fp16 to False since torch_dtype is not torch.float16.")
-            use_cuda_fp16 = False
-
         torch.nn.init.kaiming_uniform_ = skip
         torch.nn.init.uniform_ = skip
         torch.nn.init.normal_ = skip
@@ -821,7 +814,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 use_triton=use_triton,
                 disable_exllama=disable_exllama,
                 disable_exllamav2=disable_exllamav2,
-                use_cuda_fp16=use_cuda_fp16,
                 desc_act=quantize_config.desc_act,
                 use_marlin=quantize_config.format == FORMAT.MARLIN,
             )

@@ -76,7 +76,6 @@ def make_quant(
     use_marlin: bool = False,
     disable_exllama: Optional[bool] = None,
     disable_exllamav2: bool = False,
-    use_cuda_fp16: bool = True,
     desc_act: bool = False,
 ):
     # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
@@ -120,7 +119,6 @@ def make_quant(
                     in_features,
                     out_features,
                     bias,
-                    use_cuda_fp16=use_cuda_fp16,
                     weight_dtype=submodule.weight.dtype,
                 )
             else:
@@ -209,7 +207,6 @@ def pack_model(
     bits,
     group_size,
     use_triton=False,
-    use_cuda_fp16=True,
     desc_act=False,
     warmup_triton: bool = False,
     force_layer_back_to_cpu: bool = False,
@@ -237,7 +234,6 @@ def pack_model(
         bits,
         group_size,
         use_triton=use_triton,
-        use_cuda_fp16=use_cuda_fp16,
         desc_act=desc_act,
         disable_exllama=False,
         disable_exllamav2=True,

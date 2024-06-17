@@ -30,7 +30,6 @@ class QuantLinear(nn.Module):
         infeatures,
         outfeatures,
         bias,
-        use_cuda_fp16=True,
         kernel_switch_threshold=128,
         weight_dtype=torch.float16,
     ):
@@ -77,7 +76,7 @@ class QuantLinear(nn.Module):
             self.bias = None
         self.half_indim = self.infeatures // 2
 
-        self.use_cuda_fp16 = use_cuda_fp16 if bits != 8 else False
+        self.use_cuda_fp16 = True if bits != 8 else False
 
         # is performed by unpacking the weights and using torch.matmul
         if self.bits in [2, 4, 8]:

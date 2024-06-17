@@ -169,7 +169,6 @@ def load_model_tokenizer(
             model_name_or_path,
             max_memory=max_memory,
             use_triton=use_triton,
-            use_cuda_fp16=True,
             quantize_config=quantize_config,
             model_basename=model_basename,
             use_safetensors=use_safetensors,
