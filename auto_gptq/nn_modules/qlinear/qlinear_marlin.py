@@ -44,8 +44,7 @@ def mul(A, B, C, s, workspace, thread_k=-1, thread_n=-1, sms=-1, max_par=16):
     @sms: number of SMs to use for the kernel (can usually be left as auto -1)
     @max_par: maximum number of batch 64 problems to solve in parallel for large input sizes
     """
-    autogptq_marlin_cuda.mul(A, B, C, s, workspace, thread_k, thread_n, sms,
-                             max_par)
+    autogptq_marlin_cuda.mul(A, B, C, s, workspace, thread_k, thread_n, sms, max_par)
 
 
 # Precompute permutations for Marlin weight and scale shuffling
@@ -58,10 +57,10 @@ def _get_perms():
         col = i // 4
         for block in [0, 1]:
             for row in [
-                    2 * (i % 4),
-                    2 * (i % 4) + 1,
-                    2 * (i % 4 + 4),
-                    2 * (i % 4 + 4) + 1,
+                2 * (i % 4),
+                2 * (i % 4) + 1,
+                2 * (i % 4 + 4),
+                2 * (i % 4 + 4) + 1,
             ]:
                 perm1.append(16 * row + col + 8 * block)
         for j in range(4):
@@ -76,8 +75,7 @@ def _get_perms():
         scale_perm.extend([i + 8 * j for j in range(8)])
     scale_perm_single = []
     for i in range(4):
-        scale_perm_single.extend(
-            [2 * i + j for j in [0, 1, 8, 9, 16, 17, 24, 25]])
+        scale_perm_single.extend([2 * i + j for j in [0, 1, 8, 9, 16, 17, 24, 25]])
     return perm, scale_perm, scale_perm_single
 
 
@@ -87,15 +85,7 @@ _perm, _scale_perm, _scale_perm_single = _get_perms()
 class QuantLinear(nn.Module):
     QUANT_TYPE = "marlin"
 
-    def __init__(self,
-                 bits,
-                 group_size,
-                 infeatures,
-                 outfeatures,
-                 bias,
-                 is_sparse24=False,
-                 trainable=False,
-                 **kwargs):
+    def __init__(self, bits, group_size, infeatures, outfeatures, bias, is_sparse24=False, trainable=False, **kwargs):
         super().__init__()
 
         if torch.version.hip:
@@ -108,9 +98,7 @@ class QuantLinear(nn.Module):
             )
 
         if infeatures % 128 != 0 or outfeatures % 256 != 0:
-            raise ValueError(
-                "`infeatures` must be divisible by 128 and `outfeatures` by 256."
-            )
+            raise ValueError("`infeatures` must be divisible by 128 and `outfeatures` by 256.")
         if bits not in [4, 8]:
             raise NotImplementedError("Only 4 or 8 bits are supported.")
         if group_size not in [-1, 128] and group_size != infeatures:
@@ -130,14 +118,11 @@ class QuantLinear(nn.Module):
         if is_sparse24:
             self.register_buffer(
                 "B_24",
-                torch.empty((self.infeatures // 16 // 2,
-                             self.outfeatures * 16 // self.pack_factor),
-                            dtype=torch.int),
+                torch.empty((self.infeatures // 16 // 2, self.outfeatures * 16 // self.pack_factor), dtype=torch.int),
             )
             self.register_buffer(
                 "B_meta",
-                torch.empty((self.outfeatures, self.infeatures // 2 // 8),
-                            dtype=torch.int16),
+                torch.empty((self.outfeatures, self.infeatures // 2 // 8), dtype=torch.int16),
             )
             # self.register_buffer(
             #     "B_ref",
@@ -147,14 +132,11 @@ class QuantLinear(nn.Module):
         else:
             self.register_buffer(
                 "B",
-                torch.empty((self.infeatures // 16,
-                             self.outfeatures * 16 // self.pack_factor),
-                            dtype=torch.int),
+                torch.empty((self.infeatures // 16, self.outfeatures * 16 // self.pack_factor), dtype=torch.int),
             )
         self.register_buffer(
             "s",
-            torch.empty((self.infeatures // group_size, self.outfeatures),
-                        dtype=torch.half),
+            torch.empty((self.infeatures // group_size, self.outfeatures), dtype=torch.half),
         )
         # 128 is currently the minimum `tile_n`, hence it gives the maximum workspace size; 16 is the default `max_par`
         self.register_buffer(
@@ -163,8 +145,7 @@ class QuantLinear(nn.Module):
             persistent=False,
         )
         if bias:
-            self.register_buffer("bias",
-                                 torch.zeros((outfeatures), dtype=torch.half))
+            self.register_buffer("bias", torch.zeros((outfeatures), dtype=torch.half))
         else:
             self.bias = None
 
@@ -198,8 +179,7 @@ class QuantLinear(nn.Module):
         else:
             s = s.reshape((-1, len(_scale_perm_single)))[:, _scale_perm_single]
         s = s.reshape((-1, self.outfeatures)).contiguous()
-        w = w.reshape(
-            (self.infeatures // tile, tile, self.outfeatures // tile, tile))
+        w = w.reshape((self.infeatures // tile, tile, self.outfeatures // tile, tile))
         w = w.permute((0, 2, 1, 3))
         w = w.reshape((self.infeatures // tile, self.outfeatures * tile))
         res = w
@@ -207,7 +187,7 @@ class QuantLinear(nn.Module):
         q = np.zeros((res.shape[0], res.shape[1] // self.pack_factor), dtype=np.uint32)
         res = res.cpu().numpy().astype(np.uint32)
         for i in range(self.pack_factor):
-            q |= res[:, i::self.pack_factor] << self.num_bits * i
+            q |= res[:, i :: self.pack_factor] << self.num_bits * i
         q = torch.from_numpy(q.astype(np.int32)).to(w.device)
         self.B[:, :] = q.to(self.B.device)
         self.s[:, :] = s.to(self.s.device)
@@ -219,9 +199,7 @@ class QuantLinear(nn.Module):
 
     def forward(self, A):
         A = A.half()
-        C = torch.empty(A.shape[:-1] + (self.s.shape[1], ),
-                        dtype=A.dtype,
-                        device=A.device)
+        C = torch.empty(A.shape[:-1] + (self.s.shape[1],), dtype=A.dtype, device=A.device)
         mul(
             A.view((-1, A.shape[-1])),
             self.B,
@@ -262,7 +240,6 @@ def unpack_4bit_to_32bit_signed(qweight, qzeros):
     return unpacked_weights, unpacked_zeros
 
 
-
 def unpack_qzeros(qzeros):
     unpacked_zeros = torch.zeros(
         (qzeros.shape[0], qzeros.shape[1] * 8),
@@ -282,8 +259,7 @@ def unpack_qzeros(qzeros):
 @torch.no_grad()
 def dequantize_weight(layer):
     qweight, qzeros, scales = layer.qweight, layer.qzeros, layer.scales
-    unpacked_qweight, unpacked_qzeros = unpack_4bit_to_32bit_signed(
-        qweight, qzeros)
+    unpacked_qweight, unpacked_qzeros = unpack_4bit_to_32bit_signed(qweight, qzeros)
     group_size = unpacked_qweight.shape[0] // scales.shape[0]
     scales = scales.repeat_interleave(group_size, dim=0)
     unpacked_qzeros = unpacked_qzeros.repeat_interleave(group_size, dim=0)

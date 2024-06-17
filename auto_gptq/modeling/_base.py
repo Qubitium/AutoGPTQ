@@ -726,7 +726,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if use_marlin_sparse24:
             use_marlin = True
-        
+
         if quantize_config.format == FORMAT.MARLIN:
             # format marlin requires marlin kernel
             use_marlin = True
@@ -933,7 +933,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 torch_dtype=torch_dtype,
                 current_model_save_name=model_save_name,
                 device_map=device_map,
-                is_sparse24=use_marlin_sparse24
+                is_sparse24=use_marlin_sparse24,
             )
 
         accelerate.utils.modeling.load_checkpoint_in_model(
