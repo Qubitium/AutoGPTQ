@@ -1006,9 +1006,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
     def warmup_triton(self, enabled: bool = True):
         if not enabled:
             return
-        if not TRITON_AVAILABLE:
-            logger.warning("triton is not available, skip warmup stage directly.")
-            return
 
         from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
 
