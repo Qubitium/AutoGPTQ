@@ -60,19 +60,23 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self,
-        blocksize=128,
-        percdamp=0.01,
-        group_size=-1,
-        actorder=False,
-        static_groups=False,
+        self, blocksize=128, percdamp=0.01, group_size=-1, actorder=False, static_groups=False, preserve_zeros=False
     ):
+        # A way to force preserve zeros
+        if not preserve_zeros:
+            env_preserve_zeros = "AUTOGPTQ_PRESERVE_ZEROS"
+            if env_preserve_zeros in os.environ and os.environ[env_preserve_zeros] == "1":
+                preserve_zeros = True
+
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
         W = W.float()
+
+        if preserve_zeros:
+            W_nz_mask = (~torch.isclose(W, torch.zeros(1, device=W.device).float())).float()
 
         tick = time.time()
 
@@ -123,6 +127,9 @@ class GPTQ:
             count = i2 - i1
 
             W1 = W[:, i1:i2].clone()
+            if preserve_zeros:
+                W1_nz_mask = W_nz_mask[:, i1:i2]
+
             Q1 = torch.zeros_like(W1)
             Err1 = torch.zeros_like(W1)
             Losses1 = torch.zeros_like(W1)
@@ -152,13 +159,23 @@ class GPTQ:
                 Losses1[:, i] = (w - q) ** 2 / d**2
 
                 err1 = (w - q) / d
-                W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+
+                w1_err = err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                if preserve_zeros:
+                    W1[:, i:] -= w1_err * W1_nz_mask[:, i:]
+                else:
+                    W1[:, i:] -= w1_err
+
                 Err1[:, i] = err1
 
             Q[:, i1:i2] = Q1
             Losses[:, i1:i2] = Losses1 / 2
 
-            W[:, i2:] -= Err1.matmul(Hinv[i1:i2, i2:])
+            w_err = Err1.matmul(Hinv[i1:i2, i2:])
+            if preserve_zeros:
+                W[:, i2:] -= w_err * W_nz_mask[:, i2:]
+            else:
+                W[:, i2:] -= w_err
 
             if os.environ.get("DEBUG"):
                 self.layer.weight.data[:, :i2] = Q[:, :i2]
