@@ -145,6 +145,18 @@ if BUILD_CUDA_EXT:
         include_dirs.append(conda_cuda_include_dir)
         print(f"appending conda cuda include dir {conda_cuda_include_dir}")
 
+    extra_compile_args = {
+        "cxx": [
+            "-O3",
+        ],
+        "cc": [
+            "-O3",
+        ],
+        "nvcc": [
+            "-O3",
+        ],
+    }
+
     extensions = [
         cpp_extension.CUDAExtension(
             "autogptq_cuda_64",
@@ -152,6 +164,7 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/cuda_64/autogptq_cuda_64.cpp",
                 "autogptq_extension/cuda_64/autogptq_cuda_kernel_64.cu",
             ],
+            extra_compile_args=extra_compile_args,
         ),
         cpp_extension.CUDAExtension(
             "autogptq_cuda_256",
@@ -159,6 +172,7 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/cuda_256/autogptq_cuda_256.cpp",
                 "autogptq_extension/cuda_256/autogptq_cuda_kernel_256.cu",
             ],
+            extra_compile_args=extra_compile_args,
         ),
     ]
 
@@ -172,10 +186,9 @@ if BUILD_CUDA_EXT:
                     "autogptq_extension/marlin/marlin_cuda_kernel.cu",
                     "autogptq_extension/marlin/marlin_repack.cu",
                 ],
+                extra_compile_args=extra_compile_args,
             )
         )
-
-    extra_link_args = []
 
     extensions.append(
         cpp_extension.CUDAExtension(
@@ -187,7 +200,7 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/exllama/cuda_func/q4_matmul.cu",
                 "autogptq_extension/exllama/cuda_func/q4_matrix.cu",
             ],
-            extra_link_args=extra_link_args,
+            extra_compile_args=extra_compile_args,
         )
     )
     extensions.append(
@@ -198,7 +211,7 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/exllamav2/cuda/q_matrix.cu",
                 "autogptq_extension/exllamav2/cuda/q_gemm.cu",
             ],
-            extra_link_args=extra_link_args,
+            extra_compile_args=extra_compile_args,
         )
     )
 
