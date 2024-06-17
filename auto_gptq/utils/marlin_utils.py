@@ -267,7 +267,7 @@ def convert_to_marlin_sparse24(
         gc.collect()
 
     # Set quantization config to be Marlin_Sparse24
-    quantization_config.checkpoint_format = FORMAT.MARLIN_SPARSE24
+    quantization_config.checkpoint_format = FORMAT.MARLIN_24
 
     return model
 
