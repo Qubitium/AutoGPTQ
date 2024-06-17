@@ -47,7 +47,6 @@ from ._utils import (
     get_module_by_name_prefix,
     get_module_by_name_suffix,
     make_quant,
-    make_sure_no_tensor_in_meta_device,
     move_to_device,
     pack_model,
     simple_dispatch_model,
@@ -617,12 +616,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 no_split_module_classes=[cls.layer_type],
                 dtype=model_init_kwargs["torch_dtype"],
             )
-            model_init_kwargs["low_cpu_mem_usage"] = True
-
             del model
         else:
             model_init_kwargs["device_map"] = None
-            model_init_kwargs["low_cpu_mem_usage"] = False
 
         torch.cuda.empty_cache()
 
@@ -649,7 +645,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         device_map: Optional[Union[str, Dict[str, Union[int, str]]]] = None,
         max_memory: Optional[dict] = None,
         device: Optional[Union[str, int]] = None,
-        low_cpu_mem_usage: bool = False,
         use_triton: bool = False,
         use_marlin: bool = False,
         use_marlin_sparse24: bool = False,
@@ -663,6 +658,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         disable_exllama: Optional[bool] = None,
         disable_exllamav2: bool = False,
         format: Optional[str | FORMAT] = None,
+        allow_unsafe_loading: Optional[bool] = False,
         **kwargs,
     ):
         """load quantized model from local disk"""
@@ -766,6 +762,17 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             **cached_file_kwargs,
         )
 
+        # bin files have security issues: disable loading by default
+        if ".bin" in resolved_archive_file:
+            if allow_unsafe_loading:
+                logger.warning(
+                    "There are security risks when loading tensors from .bin files. Make sure you are loading model only from a trusted source."
+                )
+            else:
+                raise RuntimeError(
+                    "Loading of unsafe .bin files are not allowed by default. Pass allow_unsafe_loading=True to bypass."
+                )
+
         quantize_config.model_file_base_name = true_model_basename
 
         model_save_name = resolved_archive_file  # In case a model is sharded, this would be `model.safetensors.index.json` which may later break.
@@ -788,8 +795,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         transformers.modeling_utils._init_weights = False
 
         init_contexts = [no_init_weights()]
-        if low_cpu_mem_usage:
-            init_contexts.append(accelerate.init_empty_weights(include_buffers=False))
 
         with ContextManagers(init_contexts):
             model = AutoModelForCausalLM.from_config(
@@ -858,17 +863,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 model,
                 max_memory=max_memory,
                 no_split_module_classes=[cls.layer_type],
-            )
-
-        if low_cpu_mem_usage:
-            make_sure_no_tensor_in_meta_device(
-                model,
-                use_triton,
-                quantize_config.desc_act,
-                quantize_config.group_size,
-                bits=quantize_config.bits,
-                disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
             )
 
         if use_marlin:
@@ -996,6 +990,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             return
 
         from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
+
         QuantLinear.warmup(self.model, seqlen=self.model.seqlen)
 
     def __getattr__(self, item):
