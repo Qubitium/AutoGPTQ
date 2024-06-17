@@ -48,7 +48,7 @@ def prepare_model_for_marlin_load(
             offload_buffers=True,
         )
         # Convert model to marlin, repacking weights into Marlin format.
-        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=True)
+        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=True, is_24=is_24)
 
         # Safetensors is unable to save tied weights, so we untie them here. Reference: https://github.com/huggingface/safetensors/issues/202
         tied_params = find_tied_parameters(model)
@@ -95,8 +95,6 @@ def _validate_marlin_compatibility(cfg: BaseQuantizeConfig):
         return "The quantized model uses asymmetric quantization"
     # if cfg.desc_act:
     #     return "The quantized model uses act-order (also called desc-act) scheme"
-    if cfg.quant_method == QUANT_METHOD.AWQ:
-        return "awq_gemm format is currently not compatible with marlin"
     return None
 
 
@@ -273,7 +271,7 @@ def convert_to_marlin_24(
         gc.collect()
 
     # Set quantization config to be Marlin_24
-    quantization_config.checkpoint_format = CHECKPOINT_FORMAT.MARLIN_24
+    quantization_config.checkpoint_format = FORMAT.MARLIN_24
 
     return model
 

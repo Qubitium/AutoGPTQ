@@ -93,7 +93,7 @@ class QuantLinear(nn.Module):
                  infeatures,
                  outfeatures,
                  bias,
-                 is_24,
+                 is_24=False,
                  trainable=False,
                  **kwargs):
         super().__init__()
