@@ -17,11 +17,6 @@ def dynamically_import_QuantLinear(
     use_marlin: bool = False,
 ):
     if use_triton:
-        if torch.version.hip:
-            logger.warning(
-                "Running GPTQ triton version on AMD GPUs is untested and may result in errors or wrong predictions. Please use use_triton=False."
-            )
-
         logger.debug("Using tritonv2 for GPTQ")
         from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
     else:

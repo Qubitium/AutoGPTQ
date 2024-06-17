@@ -2022,11 +2022,7 @@ class TestQ4Marlin(unittest.TestCase):
         try:
             model_q = AutoGPTQForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
         except ValueError as e:
-            if torch.version.hip:
-                self.assertTrue("Can not use Marlin int4*fp16 kernel with AMD ROCm" in e.text)
-                self.skipTest("Can not run this test on ROCm")
-            else:
-                raise e
+            raise e
 
         has_marlin = False
         for _, module in model_q.named_modules():
@@ -2051,11 +2047,7 @@ class TestQ4Marlin(unittest.TestCase):
         try:
             model_q = AutoGPTQForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
         except ValueError as e:
-            if torch.version.hip:
-                self.assertTrue("Can not use Marlin int4*fp16 kernel with AMD ROCm" in e.text)
-                self.skipTest("Can not run this test on ROCm")
-            else:
-                raise e
+            raise e
 
         for _, param in model_q.named_parameters():
             self.assertTrue(param.device != torch.device("meta"))
