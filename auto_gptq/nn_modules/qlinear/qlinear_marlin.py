@@ -93,7 +93,7 @@ class QuantLinear(nn.Module):
                  infeatures,
                  outfeatures,
                  bias,
-                 is_24=False,
+                 is_sparse24=False,
                  trainable=False,
                  **kwargs):
         super().__init__()
@@ -127,7 +127,7 @@ class QuantLinear(nn.Module):
         self.pack_factor = 32 // self.num_bits
         self.group_size = group_size if group_size != -1 else infeatures
 
-        if is_24:
+        if is_sparse24:
             self.register_buffer(
                 "B_24",
                 torch.empty((self.infeatures // 16 // 2,

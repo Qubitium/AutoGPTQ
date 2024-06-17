@@ -170,7 +170,7 @@ def check_24(w, num_rows_to_sample=50, _verbose=False):
     print(f"{non_24_segments} / {total_segments} do not have 2:4 structure.")
 
 
-def repack_gptq_to_marlin_24(w_gptq, scales, size_k, size_n, num_bits, group_size, marlin_tile=16):
+def repack_gptq_to_marlin_sparse24(w_gptq, scales, size_k, size_n, num_bits, group_size, marlin_tile=16):
     assert num_bits == 4 or num_bits == 8
     pack_factor = 32 // num_bits
 
@@ -178,7 +178,7 @@ def repack_gptq_to_marlin_24(w_gptq, scales, size_k, size_n, num_bits, group_siz
         group_size = size_k
 
     print(
-        "repack_gptq_to_marlin_24:\n    num_bits = {}\n    group_size = {}\n    w_gptq.shape = {}\n    size_k/n = {}".format(
+        "repack_gptq_to_marlin_sparse24:\n    num_bits = {}\n    group_size = {}\n    w_gptq.shape = {}\n    size_k/n = {}".format(
             num_bits, group_size, w_gptq.shape, (size_k, size_n)
         )
     )
@@ -205,7 +205,7 @@ def repack_gptq_to_marlin_24(w_gptq, scales, size_k, size_n, num_bits, group_siz
     q_w = quant(w_comp, scales, size_k_comp, size_n, num_bits, group_size_comp)
     print("    q_w: shape = {} type = {}".format(q_w.shape, q_w.type()))
 
-    # Reshuffle to marlin_24 format
+    # Reshuffle to marlin_sparse24 format
     q_w = q_w.reshape((size_k_comp // marlin_tile, marlin_tile, size_n // marlin_tile, marlin_tile))
     q_w = q_w.permute((0, 2, 1, 3))
     q_w = q_w.reshape((size_k_comp // marlin_tile, size_n * marlin_tile))
@@ -225,7 +225,7 @@ def repack_gptq_to_marlin_24(w_gptq, scales, size_k, size_n, num_bits, group_siz
     return q, meta, w
 
 
-def repack_scales_to_marlin_24(s, num_bits, group_size, size_k, size_n):
+def repack_scales_to_marlin_sparse24(s, num_bits, group_size, size_k, size_n):
     assert group_size == -1 or group_size == 128 or group_size == size_k
 
     is_channelwise = group_size == -1 or group_size == size_k

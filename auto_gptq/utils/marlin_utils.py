@@ -11,7 +11,7 @@ from ..nn_modules.qlinear.qlinear_marlin import QuantLinear as MarlinQuantLinear
 from ..nn_modules.qlinear.qlinear_marlin import _get_perms, unpack_qzeros
 from ..quantization import FORMAT, QUANT_METHOD, BaseQuantizeConfig
 from .import_utils import MARLIN_AVAILABLE, MARLIN_EXCEPTION
-from .marlin_24_utils import repack_gptq_to_marlin_24, repack_scales_to_marlin_24
+from .marlin_sparse24_utils import repack_gptq_to_marlin_sparse24, repack_scales_to_marlin_sparse24
 from .modeling_utils import recurse_getattr, recurse_setattr
 
 if MARLIN_AVAILABLE:
@@ -27,13 +27,13 @@ def prepare_model_for_marlin_load(
     torch_dtype,
     current_model_save_name,
     device_map,
-    is_24=False,
+    is_sparse24=False,
 ):
     # The model (e.g. model.safetensors) is already serialized in the Marlin format, load it directly.
     if quantize_config.format == FORMAT.MARLIN:
         model_save_name = current_model_save_name
         logger.info(f"Loading a GPTQ model, detected Marlin serialized format at {model_save_name}.")
-        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=False, is_24=is_24)
+        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=False, is_sparse24=is_sparse24)
     else:
         # Loading the GPTQ checkpoint to do the conversion.
         # TODO: Avoid loading the model with wrong QuantLinear, and directly use
@@ -48,7 +48,7 @@ def prepare_model_for_marlin_load(
             offload_buffers=True,
         )
         # Convert model to marlin, repacking weights into Marlin format.
-        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=True, is_24=is_24)
+        model = convert_to_marlin(model, quant_linear_class, quantize_config, repack=True, is_sparse24=is_sparse24)
 
         # Safetensors is unable to save tied weights, so we untie them here. Reference: https://github.com/huggingface/safetensors/issues/202
         tied_params = find_tied_parameters(model)
@@ -131,7 +131,7 @@ def convert_to_marlin_original(
                 infeatures=module.infeatures,
                 outfeatures=module.outfeatures,
                 bias=module.bias is not None,
-                is_24=False,
+                is_sparse24=False,
                 trainable=False,
             )
 
@@ -186,7 +186,7 @@ def convert_to_marlin_original(
 
 
 @torch.no_grad()
-def convert_to_marlin_24(
+def convert_to_marlin_sparse24(
     model, model_quantlinear, quantization_config: BaseQuantizeConfig, repack: bool, strict: bool = False
 ):
     """
@@ -197,7 +197,7 @@ def convert_to_marlin_24(
             Whether to repack the qweights from `model` into the Marlin's QuantLinear layers.
     """
     if repack:
-        message = "Repacking weights to be compatible with Marlin_24 (sparse) kernel..."
+        message = "Repacking weights to be compatible with Marlin_Sparse24 (sparse) kernel..."
     else:
         # TODO: load directly Marlin QuantLinear.
         message = "Overriding QuantLinear layers to use Marlin's QuantLinear..."
@@ -218,7 +218,7 @@ def convert_to_marlin_24(
                 infeatures=module.infeatures,
                 outfeatures=module.outfeatures,
                 bias=module.bias is not None,
-                is_24=True,
+                is_sparse24=True,
                 trainable=False,
             )
 
@@ -227,7 +227,7 @@ def convert_to_marlin_24(
 
         # Dequantize the weight.
         if repack:
-            marlin_24_weight, marlin_24_meta, marlin_w_ref = repack_gptq_to_marlin_24(
+            marlin_sparse24_weight, marlin_sparse24_meta, marlin_w_ref = repack_gptq_to_marlin_sparse24(
                 module.qweight,
                 module.scales,
                 module.infeatures,
@@ -241,18 +241,18 @@ def convert_to_marlin_24(
 
                 if not torch.all(dequantized_qzeros == 8):
                     raise ValueError(
-                        "Marlin_24 kernel is compatible only with checkpoints using symmetric quantization."
+                        "Marlin_Sparse24 kernel is compatible only with checkpoints using symmetric quantization."
                         "Found non-symmetric quantization for the weight {name}."
                     )
 
-            marlin_24_scales = repack_scales_to_marlin_24(
+            marlin_sparse24_scales = repack_scales_to_marlin_sparse24(
                 module.scales, quantization_config.bits, module.group_size, module.infeatures, module.outfeatures
             )
 
-            new_module.B_24 = marlin_24_weight
-            new_module.B_meta = marlin_24_meta.resize_(marlin_24_meta.shape[1] // 2, marlin_24_meta.shape[0] * 2)
+            new_module.B_24 = marlin_sparse24_weight
+            new_module.B_meta = marlin_sparse24_meta.resize_(marlin_sparse24_meta.shape[1] // 2, marlin_sparse24_meta.shape[0] * 2)
             # new_module.B_ref = marlin_w_ref
-            new_module.s = marlin_24_scales
+            new_module.s = marlin_sparse24_scales
             new_module.bias = module.bias
 
             new_module = new_module.to(module.device)
@@ -264,14 +264,14 @@ def convert_to_marlin_24(
         # Free cuda memory.
         del module
         if repack:
-            del marlin_24_weight
-            del marlin_24_meta
+            del marlin_sparse24_weight
+            del marlin_sparse24_meta
             del marlin_w_ref
-            del marlin_24_scales
+            del marlin_sparse24_scales
         gc.collect()
 
-    # Set quantization config to be Marlin_24
-    quantization_config.checkpoint_format = FORMAT.MARLIN_24
+    # Set quantization config to be Marlin_Sparse24
+    quantization_config.checkpoint_format = FORMAT.MARLIN_SPARSE24
 
     return model
 
@@ -283,9 +283,9 @@ def convert_to_marlin(
     quantization_config: BaseQuantizeConfig,
     repack: bool,
     strict: bool = False,
-    is_24: bool = False,
+    is_sparse24: bool = False,
 ):
-    if is_24:
-        return convert_to_marlin_24(model, model_quantlinear, quantization_config, repack, strict)
+    if is_sparse24:
+        return convert_to_marlin_sparse24(model, model_quantlinear, quantization_config, repack, strict)
     else:
         return convert_to_marlin_original(model, model_quantlinear, quantization_config, repack, strict)

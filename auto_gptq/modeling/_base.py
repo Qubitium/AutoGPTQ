@@ -654,7 +654,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         low_cpu_mem_usage: bool = False,
         use_triton: bool = False,
         use_marlin: bool = False,
-        use_marlin_24: bool = False,
+        use_marlin_sparse24: bool = False,
         torch_dtype: Optional[torch.dtype] = None,
         use_cuda_fp16: bool = True,
         quantize_config: Optional[BaseQuantizeConfig] = None,
@@ -724,7 +724,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             if not isinstance(quantize_config, BaseQuantizeConfig):
                 quantize_config = BaseQuantizeConfig.from_quant_config(quantize_config, format)
 
-        if use_marlin_24:
+        if use_marlin_sparse24:
             use_marlin = True
         
         if quantize_config.format == FORMAT.MARLIN:
@@ -933,7 +933,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 torch_dtype=torch_dtype,
                 current_model_save_name=model_save_name,
                 device_map=device_map,
-                is_24=use_marlin_24
+                is_sparse24=use_marlin_sparse24
             )
 
         accelerate.utils.modeling.load_checkpoint_in_model(
