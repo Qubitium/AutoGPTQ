@@ -216,7 +216,7 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
         progress_bar.set_postfix(
             num_tokens=num_generated_tokens_list[-1],
             time=generation_time_list[-1],
-            speed=f"{num_generated_tokens_list[-1] / generation_time_list[-1]:.4f}tokens/s",
+            speed=f"{num_generated_tokens_list[-1] / generation_time_list[-1]:.3f} tokens/s",
         )
 
     total_tokens = sum(num_generated_tokens_list)
