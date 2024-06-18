@@ -1,7 +1,5 @@
+from auto_gptq_next import AutoGPTQNext, BaseQuantizeConfig
 from transformers import AutoTokenizer, TextGenerationPipeline
-
-from auto_gptq_next import AutoGPTQForCausalLM, BaseQuantizeConfig
-
 
 pretrained_model_dir = "facebook/opt-125m"
 quantized_model_dir = "opt-125m-4bit-128g"
@@ -22,7 +20,7 @@ def main():
     )
 
     # load un-quantized model, by default, the model will always be loaded into CPU memory
-    model = AutoGPTQForCausalLM.from_pretrained(pretrained_model_dir, quantize_config)
+    model = AutoGPTQNext.from_pretrained(pretrained_model_dir, quantize_config)
 
     # quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask"
     model.quantize(examples)
@@ -48,7 +46,7 @@ def main():
     model.save_quantized(quantized_model_dir, use_safetensors=True)
 
     # load quantized model to the first GPU
-    model = AutoGPTQForCausalLM.from_quantized(quantized_model_dir, device="cuda:0")
+    model = AutoGPTQNext.from_quantized(quantized_model_dir, device="cuda:0")
 
     # download quantized model from Hugging Face Hub and load to the first GPU
     # model = AutoGPTQForCausalLM.from_quantized(repo_id, device="cuda:0", use_safetensors=True, use_triton=False)
