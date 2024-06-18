@@ -1,7 +1,7 @@
 <h1 align="center">AutoGPTQ-NEXT</h1>
-<p align="center">An easy-to-use LLM quantization package with user-friendly APIs, based on GPTQ algorithm (weight-only quantization).</p>
+<p align="center">An easy-to-use LLM quantization and inference toolkit based on GPTQ algorithm (weight-only quantization).</p>
 <p align="center">
-    <a href="https://github.com/PanQiWei/AutoGPTQ/releases">
+    <a href="https://github.com/Qubitium/AutoGPTQ/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/Qubitium/AutoGPTQ.svg">
     </a>
     <a href="https://pypi.org/project/auto-gptq/">
@@ -9,12 +9,46 @@
     </a>
 </p>
 
-## News or Update
+## News
 
 - 2024-06-XX - (News)   🤗 PENDING
-- 2024-02-15 - (News) - AutoGPTQ 0.7.0 is released, with [Marlin](https://github.com/IST-DASLab/marlin) int4*fp16 matrix multiplication kernel support, with the argument `use_marlin=True` when loading models.
 
 *For more histories please turn to [here](docs/NEWS_OR_UPDATE.md)*
+
+
+## How is AutoGPTQ-NEXT different from AutoGPTQ?
+
+AutoGPTQ-NEXT is an opinionated fork of AugtoGPTQ with latest bug fixes applied, new features, better/latest model support, and an guranteed from the ModelCloud.ai team and that we, along with the open-source ML community, will take every effort to bring the library up-to-date with latest advancements, model support, and bug fixes.
+
+## Mission Statement
+
+We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target inference compatibility with HF Transformers, vLLM, and SGLang. 
+
+## Major Changes vs AutoGPTQ
+
+* `Sym=False` Support. AutoGPTQ main has broken `sym=false`.
+* `lm_head` module quantized inference support for further vram reduction.
+* ChatGLM Model Support.
+* Better defaults resulting in faster inference.
+* Better default PPL with tweaked internal code (Result may vary depending on calibration set and gpu usage).
+* Removed non-working, partially working, or fully deprecated features: Peft, ROCM, AWQ Gemm execution via GPTQ kernels, Triton v1 (replaced by v2).
+* Fixed Packing Performance regression on high core-count systems.
+* Thousands of lines of refractor/cleanup. 
+* Complete tests with every feature and model tested. Everything that does not pass tests will be removed from repo. We want quality over quantity.
+
+## Roadmap (Target Date: June/July 2024):
+
+* DBRX support.
+* `lm_head` quantization support by integrating with Intel/Autoround.
+* Customizable callback in Per-Layer quantization.
+* Add Qbits (cpu inference) support from Intel/Qbits.
+* Add back ROCM/AMD support once verything is validated.
+* Store quant loss stat and apply diffs to new quant for quality control.
+* Alert users of non-optimal calibration data.
+
+
+## Platform Support
+AutoGPTQ-NEXT is currently Linux only and requires Torch/Cuda capable GPU from NVIDIA. WSL on Windows should work as well. ROCM/AMD support will be re-added in a furture version after everything on ROCM has been validated. Only fully validated features will be re-added from the original AutoGPTQ repo. 
 
 ## Installation
 
@@ -29,19 +63,15 @@ On NVIDIA systems, AutoGPTQ-NEXT does not support [Maxwell or lower](https://qii
 
 ### Install from source
 
-Clone the source code:
+Clone repo:
 ```bash
 git clone https://github.com/Qubitium/AutoGPTQ-NEXT.git && cd AutoGPTQ
 ```
 
-A few packages are required in order to build from source: `pip install numpy gekko pandas`.
-
-Then, install locally from source:
+Compile:
 ```bash
 pip install -vvv --no-build-isolation -e .
 ```
-
-As a last resort, if the above command fails, you can try `python setup.py install`.
 
 ## Quick Tour
 
@@ -220,28 +250,22 @@ print(
 </details>
 
 ## Learn More
-[tutorials](docs/tutorial) provide step-by-step guidance to integrate `auto_gptq_next_next` with your own project and some best practice principles.
+[tutorials](docs/tutorial) provide step-by-step guidance to integrate `auto_gptq_next` with your own project and some best practice principles.
 
-[examples](examples/README.md) provide plenty of example scripts to use `auto_gptq_next_next` in different ways.
+[examples](examples/README.md) provide plenty of example scripts to use `auto_gptq_next` in different ways.
 
 ## Supported Models
 
-> you can use `model.config.model_type` to compare with the table below to check whether the model you use is supported by `auto_gptq_next`.
->
-> for example, model_type of `WizardLM`, `vicuna` and `gpt4all` are all `llama`, hence they are all supported by `auto_gptq_next`.
-
-| model type                         | quantization | inference | 
-|------------------------------------|--------------|-----------|
-| bloom                              | ✅            | ✅         |
-| gpt2                               | ✅            | ✅         | 
-| gpt_neox                           | ✅            | ✅         |
-| gptj                               | ✅            | ✅         | 
-| llama                              | ✅            | ✅         | 
-| moss                               | ✅            | ✅         |
-| opt                                | ✅            | ✅         |
-| gpt_bigcode                        | ✅            | ✅         |
-| codegen                            | ✅            | ✅         |
-| falcon(RefinedWebModel/RefinedWeb) | ✅            | ✅         |
+| Model            |    |              |    |              |    |                  |    |
+|------------------|----|--------------|----|--------------|----|------------------|----|
+| baichuan         | ✅ | gpt_bigcode  | ✅ | mixtral     | ✅ | RefinedWebModel  | ✅ |
+| bloom            | ✅ | gpt_neox     | ✅ | moss        | ✅ | stablelm_epoch   | ✅ |
+| chatglm          | ✅ | gpt2         | ✅ | mpt         | ✅ | starcoder2       | ✅ |
+| codegen          | ✅ | gptj         | ✅ | opt         | ✅ | xverse           | ✅ |
+| cohere           | ✅ | internlm     | ✅ | phi         | ✅ | Yi               | ✅ |
+| deci             | ✅ | llama        | ✅ | qwen        | ✅ |                  |    |
+| falcon           | ✅ | longllama    | ✅ | qwen2       | ✅ |                  |    |
+| gemma            | ✅ | mistral      | ✅ | RefinedWeb  | ✅ |                  |    |
 
 ## Supported Evaluation Tasks
 Currently, `auto_gptq_next` supports: `LanguageModelingTask`, `SequenceClassificationTask` and `TextSummarizationTask`; more Tasks will come soon!
@@ -250,9 +274,11 @@ Currently, `auto_gptq_next` supports: `LanguageModelingTask`, `SequenceClassific
 
 ### Which kernel is used by default?
 
-AutoGPTQ-NEXT will use Marlin, Exllama v2, Exallama v1, CUDA kernels in that order for maximum inference performance.
+AutoGPTQ-NEXT will use Marlin, Exllama v2, Exallama v1, Triton/CUDA kernels in that order for maximum inference performance.
 
 ## Acknowledgement
-- Special thanks **Elias Frantar**, **Saleh Ashkboos**, **Torsten Hoefler** and **Dan Alistarh** for proposing **GPTQ** algorithm and open source the [code](https://github.com/IST-DASLab/gptq), and for releasing [Marlin kernel](https://github.com/IST-DASLab/marlin) for mixed precision computation.
-- Special thanks **qwopqwop200**, for code in this project that relevant to quantization are mainly referenced from [GPTQ-for-LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/tree/cuda).
-- Special thanks to **turboderp**, for releasing [Exllama](https://github.com/turboderp/exllama) and [Exllama v2](https://github.com/turboderp/exllamav2) libraries with efficient mixed precision kernels.
+* **PanQiWei** and **FXMarty** for their creation and support of AutoGPTQ
+* **Elias Frantar**, **Saleh Ashkboos**, **Torsten Hoefler** and **Dan Alistarh** for proposing **GPTQ** algorithm and open source the [code](https://github.com/IST-DASLab/gptq), and for releasing [Marlin kernel](https://github.com/IST-DASLab/marlin) for mixed precision computation.
+* **qwopqwop200**, for quantization code in this project adapted from [GPTQ-for-LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/tree/cuda).
+* **turboderp**, for releasing high performance [Exllama](https://github.com/turboderp/exllama) and [Exllama v2](https://github.com/turboderp/exllamav2) libraries used in this project.
+* **FPGAMiner**, for triton kernels used in GPTQ-for-LLaMa which is adpated into this project.
