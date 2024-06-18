@@ -5,7 +5,7 @@ import torch
 import torch.utils.benchmark as benchmark
 from transformers import AutoTokenizer
 
-from auto_gptq_next import AutoGPTQForCausalLM
+from auto_gptq_next import AutoGPTQNextForCausalLM
 
 
 MODEL_ID = "TheBloke/Llama-7B-GPTQ"
@@ -60,7 +60,7 @@ def get_model_and_tokenizer(
     if not tokenizer.pad_token_id:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    model = AutoGPTQForCausalLM.from_quantized(
+    model = AutoGPTQNextForCausalLM.from_quantized(
         model_id,
         disable_exllamav2=True,
         disable_exllama=True,

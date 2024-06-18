@@ -13,7 +13,7 @@ except ImportError as e:
 
 from transformers import AutoTokenizer  # noqa: E402
 
-from auto_gptq_next import AutoGPTQForCausalLM  # noqa: E402
+from auto_gptq_next import AutoGPTQNextForCausalLM  # noqa: E402
 
 
 def get_diff(a, ref):
@@ -579,7 +579,7 @@ class TestsQ4CUDA(unittest.TestCase):
         linear.scales = linear.scales + 0.002
         linear.qzeros += 0b00010001000100010001000100010001  # for new weight format
         linear.use_cuda_fp16 = use_half2
-        self.assertTrue(linear.autogptq_cuda_available)
+        self.assertTrue(linear.autogptq_next_cuda_available)
 
         # We cast twice just for the seed.
         inp = torch.rand(1, m, k, dtype=torch.float16).to(device).to(weight_dtype)
@@ -620,7 +620,7 @@ class TestsQ4CUDA(unittest.TestCase):
         revision = "actorder"
         model_basename = "vicuna-13B-1.1-GPTQ-4bit-128g.latest"
 
-        model_q = AutoGPTQForCausalLM.from_quantized(
+        model_q = AutoGPTQNextForCausalLM.from_quantized(
             model_id,
             revision=revision,
             device=device,
@@ -666,7 +666,7 @@ class TestsQ4CUDA(unittest.TestCase):
 
         model_id = "TheBloke/WizardLM-7B-uncensored-GPTQ"
 
-        model_q = AutoGPTQForCausalLM.from_quantized(
+        model_q = AutoGPTQNextForCausalLM.from_quantized(
             model_id,
             device=device,
             use_triton=False,

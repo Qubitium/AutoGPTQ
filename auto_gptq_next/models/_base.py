@@ -39,7 +39,7 @@ from ..version import __version__
 from ._const import CPU, CUDA_0, SUPPORTED_MODELS
 from ._utils import (
     auto_dtype_from_config,
-    autogptq_post_init,
+    autogptq_next_post_init,
     convert_gptq_v1_to_v2_format,
     convert_gptq_v2_to_v1_format,
     find_layers,
@@ -971,7 +971,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             model.seqlen = 4096
 
         # Any post-initialization that require device information, for example buffers initialization on device.
-        model = autogptq_post_init(model, use_act_order=quantize_config.desc_act)
+        model = autogptq_next_post_init(model, use_act_order=quantize_config.desc_act)
 
         model.eval()
 

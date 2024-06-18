@@ -12,7 +12,7 @@ except ImportError as e:
 
 from transformers import AutoTokenizer  # noqa: E402
 
-from auto_gptq_next import AutoGPTQForCausalLM  # noqa: E402
+from auto_gptq_next import AutoGPTQNextForCausalLM  # noqa: E402
 
 
 class TestsQ4Triton(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestsQ4Triton(unittest.TestCase):
 
         model_id = "TheBloke/WizardLM-7B-uncensored-GPTQ"
 
-        model_q = AutoGPTQForCausalLM.from_quantized(
+        model_q = AutoGPTQNextForCausalLM.from_quantized(
             model_id,
             device="cuda:0",
             use_triton=True,
@@ -63,7 +63,7 @@ class TestsQ4Triton(unittest.TestCase):
         revision = "actorder"
         model_basename = "vicuna-13B-1.1-GPTQ-4bit-128g.latest"
 
-        model_q = AutoGPTQForCausalLM.from_quantized(
+        model_q = AutoGPTQNextForCausalLM.from_quantized(
             model_id,
             revision=revision,
             device="cuda:0",

@@ -5,7 +5,7 @@ import numpy
 import torch
 from transformers import AutoTokenizer
 
-from auto_gptq_next import AutoGPTQForCausalLM
+from auto_gptq_next import AutoGPTQNextForCausalLM
 
 
 class TestLmHead(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestLmHead(unittest.TestCase):
         tokenizer = AutoTokenizer.from_pretrained(self.MODEL_ID)
         inputs = tokenizer(prompt, return_tensors="pt").to(device=self.DEVICE)
 
-        model = AutoGPTQForCausalLM.from_quantized(self.MODEL_ID, use_safetensors=True, device=self.DEVICE)
+        model = AutoGPTQNextForCausalLM.from_quantized(self.MODEL_ID, use_safetensors=True, device=self.DEVICE)
 
         # validate lm_head is loaded as quantized layer
         assert model.lm_head.__class__.__name__ == "QuantLinear"

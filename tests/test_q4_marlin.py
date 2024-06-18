@@ -12,7 +12,7 @@ except ImportError as e:
 
 from transformers import AutoTokenizer  # noqa: E402
 
-from auto_gptq_next import AutoGPTQForCausalLM  # noqa: E402
+from auto_gptq_next import AutoGPTQNextForCausalLM  # noqa: E402
 
 
 class TestQ4Marlin(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestQ4Marlin(unittest.TestCase):
         model_id = "TheBloke/Llama-2-7B-Chat-GPTQ"
 
         try:
-            model_q = AutoGPTQForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
+            model_q = AutoGPTQNextForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
         except ValueError as e:
             if torch.version.hip:
                 self.assertTrue("Can not use Marlin int4*fp16 kernel with AMD ROCm" in e.text)
@@ -55,7 +55,7 @@ class TestQ4Marlin(unittest.TestCase):
         # TheBloke/Llama-2-7B-Chat-GPTQ has bias, but they are all zeros, use a checkpoint which really uses bias.
         model_id = "s3nh/starcoderbase-1b-GPTQ"
         try:
-            model_q = AutoGPTQForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
+            model_q = AutoGPTQNextForCausalLM.from_quantized(model_id, device="cuda:0", use_marlin=True)
         except ValueError as e:
             if torch.version.hip:
                 self.assertTrue("Can not use Marlin int4*fp16 kernel with AMD ROCm" in e.text)
