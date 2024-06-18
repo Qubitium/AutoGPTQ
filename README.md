@@ -19,7 +19,7 @@
 
 ## How is AutoGPTQ-NEXT different from AutoGPTQ?
 
-AutoGPTQ-NEXT is an updated version of AugtoGPTQ with latest bug fixes applied, new features, better/latest model support, and an guranteed from the ModelCloud.ai team and that we will take every effort to bring the library update to latest standards with latest models added as soon as possible.
+AutoGPTQ-NEXT is an updated version of AugtoGPTQ with latest bug fixes applied, new features, better/latest model support, and an guranteed from the ModelCloud.ai team and that we, along with the open-source ML community, will take every effort to bring the library up-to-date with latest advancements, model support, and bug fixes.
 
 ## Mission Statement
 
@@ -28,12 +28,12 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 ## Major Changes vs AutoGPTQ
 
 * `Sym=False` Support. AutoGPTQ main has broken `sym=false`.
-* `lm_head` module quantized inference support for every more memory saving.
-* PENDING `lm_head` quantization will be added soon with support from Intel/Autoround 
-* ChatGLM Model Support
-* Better defaults resulting in faster inference
-* Better default PPL without with tweaked internal code (Result may vary depending on calibration set and gpu usage)
-* PENDING: DBRX Model Support
+* `lm_head` module quantized inference support for further vram reduction.
+* PENDING `lm_head` quantization will be added soon with support from Intel/Autoround.
+* ChatGLM Model Support.
+* Better defaults resulting in faster inference.
+* Better default PPL without with tweaked internal code (Result may vary depending on calibration set and gpu usage).
+* PENDING: DBRX Model Support.
 * Removed non-working, partially working, or fully deprecated features: Peft, ROCM, AWQ Gemm execution via GPTQ kernels, Triton v1 (replaced by v2).
 * Fixed Packing Performance regression on high core-count systems.
 * Thousands of lines of refractor/cleanup. 
@@ -55,14 +55,12 @@ On NVIDIA systems, AutoGPTQ-NEXT does not support [Maxwell or lower](https://qii
 
 ### Install from source
 
-Clone the source code:
+Clone repo:
 ```bash
 git clone https://github.com/Qubitium/AutoGPTQ-NEXT.git && cd AutoGPTQ
 ```
 
-A few packages are required in order to build from source: `pip install numpy gekko pandas`.
-
-Then, install locally from source:
+Compile:
 ```bash
 pip install -vvv --no-build-isolation -e .
 ```
