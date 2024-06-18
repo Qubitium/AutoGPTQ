@@ -244,15 +244,11 @@ print(
 </details>
 
 ## Learn More
-[tutorials](docs/tutorial) provide step-by-step guidance to integrate `auto_gptq_next_next` with your own project and some best practice principles.
+[tutorials](docs/tutorial) provide step-by-step guidance to integrate `auto_gptq_next` with your own project and some best practice principles.
 
-[examples](examples/README.md) provide plenty of example scripts to use `auto_gptq_next_next` in different ways.
+[examples](examples/README.md) provide plenty of example scripts to use `auto_gptq_next` in different ways.
 
 ## Supported Models
-
-> you can use `model.config.model_type` to compare with the table below to check whether the model you use is supported by `auto_gptq_next`.
->
-> for example, model_type of `WizardLM`, `vicuna` and `gpt4all` are all `llama`, hence they are all supported by `auto_gptq_next`.
 
 | Model            |     |
 |------------------|-----|
