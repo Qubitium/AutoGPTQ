@@ -37,11 +37,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-
       - name: Install 
         run: |
           pip install -vvv .[quality]
       
       - name: Check style with ruff
         run: |
-          ruff auto_gptq_next examples tests setup.py
+          cd format
+          ruff ../auto_gptq_next ../examples ../tests ../setup.py
