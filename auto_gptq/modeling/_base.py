@@ -25,6 +25,7 @@ from ..quantization.config import (
     META_QUANTIZER_AUTOGPTQ,
     MIN_VERSION_WITH_V2,
     QUANTIZE_BLACK_LIST,
+    INFERENCE_BLACK_LIST,
 )
 from ..utils.data_utils import collate_data
 from ..utils.import_utils import (
@@ -166,9 +167,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if self.quantized:
             raise EnvironmentError("can't execute quantize because the model is quantized.")
 
-        if self.quantize_config.quant_method in QUANTIZE_BLACK_LIST:
+        if self.quantize_config.format in QUANTIZE_BLACK_LIST:
             raise ValueError(
-                f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}"
+                f"Unsupported quantization operation for quant format: {self.quantize_config.format}"
             )
 
         device_map = self.hf_device_map
@@ -731,6 +732,11 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
 
         if use_marlin_sparse24:
             use_marlin = True
+
+        if quantize_config.format in INFERENCE_BLACK_LIST:
+            raise ValueError(
+                f"Unsupported inference operation for quant format: {quantize_config.format}"
+            )
 
         if quantize_config.format == FORMAT.MARLIN:
             # format marlin requires marlin kernel
