@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ruff auto_gptq_next examples tests setup.py --fix
+ruff check ../auto_gptq_next ../examples ../tests ../setup.py --fix
