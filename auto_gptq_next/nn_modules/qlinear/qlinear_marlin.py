@@ -85,7 +85,7 @@ _perm, _scale_perm, _scale_perm_single = _get_perms()
 class QuantLinear(nn.Module):
     QUANT_TYPE = "marlin"
 
-    def __init__(self, bits, group_size, infeatures, outfeatures, bias, **kwargs):
+    def __init__(self, bits, group_size, infeatures, outfeatures, bias, is_sparse24=False, trainable=False, **kwargs):
         super().__init__()
 
         if not torch.cuda.get_device_capability()[0] >= 8:
@@ -95,8 +95,8 @@ class QuantLinear(nn.Module):
 
         if infeatures % 128 != 0 or outfeatures % 256 != 0:
             raise ValueError("`infeatures` must be divisible by 128 and `outfeatures` by 256.")
-        if bits not in [4]:
-            raise NotImplementedError("Only 4 bits are supported.")
+        if bits not in [4, 8]:
+            raise NotImplementedError("Only 4 or 8 bits are supported.")
         if group_size not in [-1, 128] and group_size != infeatures:
             raise ValueError("Only group_size -1 and 128 are supported.")
         if infeatures % group_size != 0:
@@ -104,11 +104,30 @@ class QuantLinear(nn.Module):
 
         self.infeatures = infeatures
         self.outfeatures = outfeatures
+
+        self.num_bits = bits
+        self.pack_factor = 32 // self.num_bits
         self.group_size = group_size if group_size != -1 else infeatures
-        self.register_buffer(
-            "B",
-            torch.empty((self.infeatures // 16, self.outfeatures * 16 // 8), dtype=torch.int),
-        )
+
+        if is_sparse24:
+            self.register_buffer(
+                "B_24",
+                torch.empty((self.infeatures // 16 // 2, self.outfeatures * 16 // self.pack_factor), dtype=torch.int),
+            )
+            self.register_buffer(
+                "B_meta",
+                torch.empty((self.outfeatures, self.infeatures // 2 // 8), dtype=torch.int16),
+            )
+            # self.register_buffer(
+            #     "B_ref",
+            #     torch.empty((self.infeatures, self.outfeatures),
+            #                 dtype=torch.half),
+            # )
+        else:
+            self.register_buffer(
+                "B",
+                torch.empty((self.infeatures // 16, self.outfeatures * 16 // self.pack_factor), dtype=torch.int),
+            )
         self.register_buffer(
             "s",
             torch.empty((self.infeatures // group_size, self.outfeatures), dtype=torch.half),
@@ -135,7 +154,7 @@ class QuantLinear(nn.Module):
         if linear.weight.dtype != torch.half:
             raise ValueError("Only `torch.half` weights are supported.")
         tile = 16
-        maxq = 2**4 - 1
+        maxq = (1 << self.num_bits) - 1
         s = scales.t()
         w = linear.weight.data.t()
         if self.group_size != self.infeatures:
@@ -159,10 +178,10 @@ class QuantLinear(nn.Module):
         w = w.reshape((self.infeatures // tile, self.outfeatures * tile))
         res = w
         res = res.reshape((-1, _perm.numel()))[:, _perm].reshape(res.shape)
-        q = np.zeros((res.shape[0], res.shape[1] // 8), dtype=np.uint32)
+        q = np.zeros((res.shape[0], res.shape[1] // self.pack_factor), dtype=np.uint32)
         res = res.cpu().numpy().astype(np.uint32)
-        for i in range(8):
-            q |= res[:, i::8] << 4 * i
+        for i in range(self.pack_factor):
+            q |= res[:, i :: self.pack_factor] << self.num_bits * i
         q = torch.from_numpy(q.astype(np.int32)).to(w.device)
         self.B[:, :] = q.to(self.B.device)
         self.s[:, :] = s.to(self.s.device)

@@ -38,6 +38,7 @@ class FORMAT:
     # v2 format fixed sym = False quantization
     GPTQ_V2 = "gptq_v2"
     MARLIN = "marlin"
+    MARLIN_24 = "marlin_24"
 
 
 # quant methods
@@ -50,11 +51,14 @@ QUANT_METHOD_FORMAT_MAPPING = {
         FORMAT.GPTQ,
         FORMAT.GPTQ_V2,
         FORMAT.MARLIN,
+        FORMAT.MARLIN_24,
     },
 }
 
 # inference only methods should go here
-QUANTIZE_BLACK_LIST = {}
+QUANTIZE_FORMAT_BLACK_LIST = {FORMAT.MARLIN_24}
+
+INFERENCE_FORMAT_BLACK_LIST = {FORMAT.MARLIN_24}
 
 # compat
 QUANT_CONFIG_ARG_SYNONYMS = {
@@ -244,9 +248,9 @@ class QuantizeConfig(PushToHubMixin):
 
         transformers_config = False
         for quantize_config_filename in [
+            "config.json",  # TODO: Remove this change
             QUANT_CONFIG_FILENAME,
             "quant_config.json",
-            "config.json",
         ]:
             if isdir(save_dir):  # Local
                 resolved_config_file = join(save_dir, quantize_config_filename)

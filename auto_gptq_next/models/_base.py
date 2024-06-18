@@ -17,8 +17,15 @@ from transformers.utils.generic import ContextManagers
 from transformers.utils.hub import PushToHubMixin
 
 from ..quantization import GPTQ, QuantizeConfig
-from ..quantization.config import (FORMAT, META_FIELD_QUANTIZER, META_QUANTIZER_AUTOGPTQ,
-                                   MIN_VERSION_WITH_V2, QUANTIZE_BLACK_LIST, BaseQuantizeConfig)
+from ..quantization.config import (
+    FORMAT,
+    META_FIELD_QUANTIZER,
+    META_QUANTIZER_AUTOGPTQ,
+    MIN_VERSION_WITH_V2,
+    QUANTIZE_FORMAT_BLACK_LIST,
+    INFERENCE_FORMAT_BLACK_LIST,
+    BaseQuantizeConfig,
+)
 from ..utils.data_utils import collate_data
 from ..utils.import_utils import dynamically_import_QuantLinear
 from ..utils.marlin_utils import (_validate_marlin_compatibility,
@@ -141,9 +148,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         if self.quantized:
             raise EnvironmentError("quantize() is called a model that is already quantized")
 
-        if self.quantize_config.quant_method in QUANTIZE_BLACK_LIST:
+        if self.quantize_config.format in QUANTIZE_FORMAT_BLACK_LIST:
             raise ValueError(
-                f"Unsupported quantization operation for quant method: {self.quantize_config.quant_method}"
+                f"Unsupported quantization operation for quant format: {self.quantize_config.format}"
             )
 
         # TODO: lm_head quantization is yet ready but pending
@@ -631,8 +638,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         device_map: Optional[Union[str, Dict[str, Union[int, str]]]] = None,
         max_memory: Optional[dict] = None,
         device: Optional[Union[str, int]] = None,
-        use_triton: bool = True,
-        use_marlin: bool = True,
+        use_triton: bool = False,
+        use_marlin: bool = False,
+        use_marlin_sparse24: bool = False,
         torch_dtype: [str | torch.dtype] = "auto",
         use_cuda_fp16: bool = True,
         quantize_config: Optional[QuantizeConfig] = None,
@@ -706,6 +714,14 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         else:
             if not isinstance(quantize_config, QuantizeConfig):
                 quantize_config = QuantizeConfig.from_quant_config(quantize_config, format)
+
+        if use_marlin_sparse24:
+            use_marlin = True
+
+        if quantize_config.format in INFERENCE_FORMAT_BLACK_LIST:
+            raise ValueError(
+                f"Unsupported inference operation for quant format: {quantize_config.format}"
+            )
 
         if quantize_config.format == FORMAT.MARLIN:
             # format marlin requires marlin kernel
@@ -895,6 +911,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 torch_dtype=torch_dtype,
                 current_model_save_name=model_save_name,
                 device_map=device_map,
+                is_sparse24=use_marlin_sparse24,
             )
 
         accelerate.utils.modeling.load_checkpoint_in_model(
