@@ -1,7 +1,7 @@
 <h1 align="center">AutoGPTQ-NEXT</h1>
 <p align="center">An easy-to-use LLM quantization package with user-friendly APIs, based on GPTQ algorithm (weight-only quantization).</p>
 <p align="center">
-    <a href="https://github.com/PanQiWei/AutoGPTQ/releases">
+    <a href="https://github.com/Qubitium/AutoGPTQ/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/Qubitium/AutoGPTQ.svg">
     </a>
     <a href="https://pypi.org/project/auto-gptq/">
@@ -230,18 +230,26 @@ print(
 >
 > for example, model_type of `WizardLM`, `vicuna` and `gpt4all` are all `llama`, hence they are all supported by `auto_gptq_next`.
 
-| model type                         | quantization | inference | 
-|------------------------------------|--------------|-----------|
-| bloom                              | ✅            | ✅         |
-| gpt2                               | ✅            | ✅         | 
-| gpt_neox                           | ✅            | ✅         |
-| gptj                               | ✅            | ✅         | 
-| llama                              | ✅            | ✅         | 
-| moss                               | ✅            | ✅         |
-| opt                                | ✅            | ✅         |
-| gpt_bigcode                        | ✅            | ✅         |
-| codegen                            | ✅            | ✅         |
-| falcon(RefinedWebModel/RefinedWeb) | ✅            | ✅         |
+| model type      | quantization | inference | 
+|-----------------|--------------|-----------|
+| baichuan        | ✅          | ✅        |
+| bloom           | ✅          | ✅        |
+| codegen         | ✅          | ✅        |
+| cohere          | ✅          | ✅        |
+| deci            | ✅          | ✅        |
+| gpt_bigcode     | ✅          | ✅        |
+| gpt_neox        | ✅          | ✅        |
+| gpt2            | ✅          | ✅        |
+| gptj            | ✅          | ✅        |
+| internlm        | ✅          | ✅        |
+| moss            | ✅          | ✅        |
+| mpt             | ✅          | ✅        |
+| opt             | ✅          | ✅        |
+| qwen            | ✅          | ✅        |
+| RefinedWeb      | ✅          | ✅        |
+| RefinedWebModel | ✅          | ✅        |
+| stablelm_epoch  | ✅          | ✅        |
+| xverse          | ✅          | ✅        |
 
 ## Supported Evaluation Tasks
 Currently, `auto_gptq_next` supports: `LanguageModelingTask`, `SequenceClassificationTask` and `TextSummarizationTask`; more Tasks will come soon!
