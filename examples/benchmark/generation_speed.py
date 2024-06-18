@@ -13,6 +13,7 @@ from transformers import AutoTokenizer, GenerationConfig
 from transformers.generation.logits_process import LogitsProcessor
 
 from auto_gptq_next import AutoGPTQForCausalLM, BaseQuantizeConfig
+from datasets import load_dataset
 
 
 logger = logging.getLogger(__name__)
@@ -74,11 +75,19 @@ class CustomizedMinNewTokensLogitsProcessor(LogitsProcessor):
         return banned_mask
 
 
-def load_data(data_path, tokenizer, n_samples, max_new_tokens):
-    with open(data_path, "r", encoding="utf-8") as f:
-        raw_data = json.load(f)
+def load_data(tokenizer, n_samples, max_new_tokens):
+    data_dict = load_dataset("ModelCloud/alpaca-data-cleaned", data_files="alpaca_data_cleaned.json", split="train")
 
-    raw_data = random.sample(raw_data, k=min(n_samples, len(raw_data)))
+    datas = [
+        {
+            'input': item['input'],
+            'output': item['output'],
+            'instruction': item['instruction']
+        }
+        for item in data_dict
+    ]
+
+    raw_data = random.sample(datas, k=min(n_samples, len(datas)))
 
     def dummy_gen():
         return raw_data
@@ -215,8 +224,8 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
     total_tokens = sum(num_generated_tokens_list)
     total_seconds = sum(generation_time_list)
     logger.info(
-        f"generated {total_tokens} tokens using {total_seconds} seconds, "
-        f"generation speed: {total_tokens / total_seconds}tokens/s"
+        f"generated {total_tokens} tokens using {total_seconds:.3f} seconds, "
+        f"generation speed: {total_tokens / total_seconds:.3f}tokens/s"
     )
 
 
@@ -287,7 +296,6 @@ def main():
 
     logger.info("loading data")
     examples = load_data(
-        "../quantization/dataset/alpaca_data_cleaned.json",
         tokenizer,
         args.num_samples,
         args.max_new_tokens,
