@@ -32,7 +32,9 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 * Fixed Packing Performance regression on high core-count systems.
 * Thousands of lines of refractor/cleanup. 
 * Complete tests with every feature and model tested. Everything that does not pass tests will be removed from repo. We want quality over quantity.
-
+* Debloat: Over 271K lines removed of which 250K is caused by a single dataset for an example that should be part of HF.
+* Shorter and more concise public facing api vars and internal vars. No need to copy everything HF does when it comes to class names.
+  
 ## Roadmap (Target Date: July 2024):
 
 * DBRX support.
