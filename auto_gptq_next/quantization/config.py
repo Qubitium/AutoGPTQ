@@ -289,22 +289,26 @@ class QuantizeConfig(PushToHubMixin):
         self.meta["damp_percent"] = self.damp_percent
         self.meta["true_sequential"] = self.true_sequential
 
-        return {
+        result = {
             "bits": self.bits,
             "group_size": self.group_size,
             "desc_act": self.desc_act,
             "static_groups": self.static_groups,
             "sym": self.sym,
             "lm_head": self.lm_head,
-            # TODO: deprecate?
-            "model_name_or_path": self.model_name_or_path,
-            "model_file_base_name": self.model_file_base_name,
             QUANT_METHOD_FIELD: self.quant_method,
             FORMAT_FIELD: self.format,
             # compact: until format PR is pushed 3rd party libs such as sglang/vllm, duplicate checkpoint_format
             FORMAT_FIELD_COMPAT: self.format,
             META_FIELD: self.meta,
         }
+
+        if self.model_name_or_path is not None:
+            result["model_name_or_path"] = self.model_name_or_path
+        if self.model_file_base_name is not None:
+            result["model_file_base_name"] = self.model_file_base_name
+
+        return result
 
 
 # deprecated: will be removed in future update
