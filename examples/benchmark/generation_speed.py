@@ -222,8 +222,8 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
     total_tokens = sum(num_generated_tokens_list)
     total_seconds = sum(generation_time_list)
     logger.info(
-        f"generated {total_tokens} tokens using {total_seconds} seconds, "
-        f"generation speed: {total_tokens / total_seconds}tokens/s"
+        f"generated {total_tokens} tokens using {total_seconds:.3f} seconds, "
+        f"generation speed: {total_tokens / total_seconds:.3f} tokens/s"
     )
 
 
