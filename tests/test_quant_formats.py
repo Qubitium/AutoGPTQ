@@ -5,12 +5,11 @@ import tempfile  # noqa: E402
 import unittest  # noqa: E402
 
 import torch.cuda  # noqa: E402
-from parameterized import parameterized  # noqa: E402
-from transformers import AutoTokenizer  # noqa: E402
-
-from auto_gptq_next import AutoGPTQForCausalLM, __version__  # noqa: E402
+from auto_gptq_next import AutoGPTQNext, __version__  # noqa: E402
 from auto_gptq_next.quantization import FORMAT, QUANT_CONFIG_FILENAME, BaseQuantizeConfig  # noqa: E402
 from auto_gptq_next.quantization.config import META_FIELD_QUANTIZER, META_QUANTIZER_AUTOGPTQ
+from parameterized import parameterized  # noqa: E402
+from transformers import AutoTokenizer  # noqa: E402
 
 
 class TestQuantization(unittest.TestCase):
@@ -40,7 +39,7 @@ class TestQuantization(unittest.TestCase):
             format=format,
         )
 
-        model = AutoGPTQForCausalLM.from_pretrained(
+        model = AutoGPTQNext.from_pretrained(
             pretrained_model_dir,
             quantize_config=quantize_config,
             use_flash_attention_2=False,
@@ -65,7 +64,7 @@ class TestQuantization(unittest.TestCase):
                 assert model.quantize_config.to_dict() == file_dict
                 logging.info(f"Saved config file: {file_dict}")
 
-            model = AutoGPTQForCausalLM.from_quantized(
+            model = AutoGPTQNext.from_quantized(
                 tmpdirname,
                 device="cuda:0",
                 use_marlin=use_marlin,
@@ -92,7 +91,7 @@ class TestQuantization(unittest.TestCase):
                 "is_marlin_format": use_marlin,
             }
 
-            model = AutoGPTQForCausalLM.from_quantized(
+            model = AutoGPTQNext.from_quantized(
                 tmpdirname,
                 device="cuda:0",
                 quantize_config=compat_quantize_config,
@@ -111,7 +110,7 @@ class TestQuantization(unittest.TestCase):
                 "sym": sym,
                 "desc_act": True,
             }
-            model = AutoGPTQForCausalLM.from_quantized(
+            model = AutoGPTQNext.from_quantized(
                 tmpdirname,
                 device="cuda:0",
                 quantize_config=compat_quantize_config,

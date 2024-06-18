@@ -4,14 +4,12 @@ from logging import getLogger
 import accelerate
 import torch
 from accelerate.utils import find_tied_parameters
-from safetensors.torch import save_file as safe_save
 from tqdm import tqdm
 
 from ..nn_modules.qlinear.qlinear_marlin import QuantLinear as MarlinQuantLinear
 from ..nn_modules.qlinear.qlinear_marlin import _get_perms, unpack_qzeros
-from ..quantization import FORMAT, QUANT_METHOD, BaseQuantizeConfig
+from ..quantization import FORMAT, BaseQuantizeConfig
 from .modeling_utils import recurse_getattr, recurse_setattr
-
 
 logger = getLogger(__name__)
 
@@ -131,9 +129,9 @@ def convert_to_marlin(
 
         # Dequantize the weight.
         if repack:
-            import autogptq_marlin_cuda
+            import autogptq_next_marlin_cuda
 
-            marlin_repacked_weight = autogptq_marlin_cuda.gptq_repack(module.qweight)
+            marlin_repacked_weight = autogptq_next_marlin_cuda.gptq_repack(module.qweight)
 
             if strict:
                 dequantized_qzeros = unpack_qzeros(module.qzeros)

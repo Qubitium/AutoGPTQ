@@ -7,14 +7,12 @@ from itertools import chain
 from typing import Dict, List, Optional
 
 import torch
+from auto_gptq_next import AutoGPTQNext, BaseQuantizeConfig
 from datasets import Dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, GenerationConfig
 from transformers.generation.logits_process import LogitsProcessor
-
-from auto_gptq_next import AutoGPTQForCausalLM, BaseQuantizeConfig
 from datasets import load_dataset
-
 
 logger = logging.getLogger(__name__)
 
@@ -167,14 +165,14 @@ def load_model_tokenizer(
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
     if from_pretrained:
-        model = AutoGPTQForCausalLM.from_pretrained(
+        model = AutoGPTQNext.from_pretrained(
             pretrained_model_name_or_path=model_name_or_path,
             quantize_config=BaseQuantizeConfig(),
             max_memory=max_memory,
             trust_remote_code=trust_remote_code,
         )
     else:
-        model = AutoGPTQForCausalLM.from_quantized(
+        model = AutoGPTQNext.from_quantized(
             model_name_or_path,
             max_memory=max_memory,
             use_triton=use_triton,
@@ -224,8 +222,8 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
     total_tokens = sum(num_generated_tokens_list)
     total_seconds = sum(generation_time_list)
     logger.info(
-        f"generated {total_tokens} tokens using {total_seconds:.3f} seconds, "
-        f"generation speed: {total_tokens / total_seconds:.3f}tokens/s"
+        f"generated {total_tokens} tokens using {total_seconds} seconds, "
+        f"generation speed: {total_tokens / total_seconds}tokens/s"
     )
 
 
