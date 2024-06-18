@@ -3,10 +3,8 @@ import unittest
 
 import torch
 import torch.utils.benchmark as benchmark
+from auto_gptq_next import AutoGPTQNextForCausalLM
 from transformers import AutoTokenizer
-
-from auto_gptq import AutoGPTQForCausalLM
-
 
 MODEL_ID = "TheBloke/Llama-7B-GPTQ"
 DATASET_ID = "timdettmers/openassistant-guanaco"
@@ -60,7 +58,7 @@ def get_model_and_tokenizer(
     if not tokenizer.pad_token_id:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    model = AutoGPTQForCausalLM.from_quantized(
+    model = AutoGPTQNextForCausalLM.from_quantized(
         model_id,
         disable_exllamav2=True,
         disable_exllama=True,

@@ -3,11 +3,9 @@ from functools import partial
 
 import datasets
 import torch
+from auto_gptq_next import AutoGPTQNextForCausalLM, BaseQuantizeConfig
+from auto_gptq_next.eval_tasks import SequenceClassificationTask
 from transformers import AutoTokenizer
-
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-from auto_gptq.eval_tasks import SequenceClassificationTask
-
 
 DATASET = "cardiffnlp/tweet_sentiment_multilingual"
 TEMPLATE = "Question:What's the sentiment of the given text? Choices are {labels}.\nText: {text}\nAnswer:"
@@ -45,7 +43,7 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model_dir)
 
-    model = AutoGPTQForCausalLM.from_pretrained(args.base_model_dir, BaseQuantizeConfig())
+    model = AutoGPTQNextForCausalLM.from_pretrained(args.base_model_dir, BaseQuantizeConfig())
     model.to("cuda:0")
 
     task = SequenceClassificationTask(
@@ -71,7 +69,7 @@ def main():
     del model
     torch.cuda.empty_cache()
 
-    model = AutoGPTQForCausalLM.from_quantized(args.quantized_model_dir, device="cuda:0", use_triton=args.use_triton)
+    model = AutoGPTQNextForCausalLM.from_quantized(args.quantized_model_dir, device="cuda:0", use_triton=args.use_triton)
     task.model = model
     task.device = model.device
     print(f"eval result for quantized model: {task.run()}")
