@@ -1060,7 +1060,6 @@ class TestsQ4Exllama(unittest.TestCase):
             group_size=group_size,
             bits=4,
             disable_exllama=False,
-            disable_exllamav2=True,
         )
 
         linear = linear_class(

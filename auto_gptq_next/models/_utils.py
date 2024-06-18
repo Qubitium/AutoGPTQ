@@ -92,7 +92,6 @@ def make_quant(
         bits=bits,
         use_marlin=use_marlin,
         disable_exllama=disable_exllama,
-        disable_exllamav2=disable_exllamav2,
     )
 
     if isinstance(module, QuantLinear):
@@ -220,7 +219,6 @@ def pack_model(
         group_size=group_size,
         bits=bits,
         disable_exllama=False,
-        disable_exllamav2=True,
         use_marlin=use_marlin,
     )
 

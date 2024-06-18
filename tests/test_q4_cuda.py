@@ -557,7 +557,6 @@ class TestsQ4CUDA(unittest.TestCase):
             group_size=group_size,
             bits=4,
             disable_exllama=True,
-            disable_exllamav2=True,
         )
 
         weight_dtype = torch.float16 if use_half2 else torch.float32

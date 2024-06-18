@@ -880,7 +880,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 group_size=quantize_config.group_size,
                 bits=quantize_config.bits,
                 disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
                 use_marlin=False,
             )
 
@@ -915,7 +914,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             group_size=quantize_config.group_size,
             bits=quantize_config.bits,
             disable_exllama=disable_exllama,
-            disable_exllamav2=disable_exllamav2,
             use_marlin=use_marlin,
         )
 
