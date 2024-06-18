@@ -172,9 +172,7 @@ class BaseQuantizeConfig(PushToHubMixin):
             if format not in valid_formats:
                 raise ValueError(f"Unknown quantization checkpoint format: {format}.")
             if quantize_cfg.get(FORMAT_FIELD):
-                raise ValueError(
-                    "Conflict: quantization format is passed in and also exists in model config."
-                )
+                raise ValueError("Conflict: quantization format is passed in and also exists in model config.")
         # compat: warn if checkpoint_format is missing
         elif quantize_cfg.get(FORMAT_FIELD) is None:
             format_auto_inferred = True
@@ -290,9 +288,6 @@ class BaseQuantizeConfig(PushToHubMixin):
             return cls.from_quant_config(args_from_json, format)
 
     def to_dict(self):
-        # compact: until format PR is pushed 3rd libs, duplicate checkpoint_format
-        self.meta[FORMAT_FIELD_COMPAT] = self.format
-
         # move non-inference required variables to meta
         self.meta["damp_percent"] = self.damp_percent
         self.meta["true_sequential"] = self.true_sequential
@@ -310,4 +305,6 @@ class BaseQuantizeConfig(PushToHubMixin):
             QUANT_METHOD_FIELD: self.quant_method,
             FORMAT_FIELD: self.format,
             META_FIELD: self.meta,
+            # compact: until format PR is pushed 3rd party libs such as sglang/vllm, duplicate checkpoint_format
+            FORMAT_FIELD_COMPAT: self.format,
         }

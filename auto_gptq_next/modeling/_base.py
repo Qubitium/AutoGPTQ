@@ -38,6 +38,7 @@ from ..utils.marlin_utils import (
 from ..version import __version__
 from ._const import CPU, CUDA_0, SUPPORTED_MODELS
 from ._utils import (
+    auto_dtype_from_config,
     autogptq_post_init,
     convert_gptq_v1_to_v2_format,
     convert_gptq_v2_to_v1_format,
@@ -47,7 +48,6 @@ from ._utils import (
     get_module_by_name_prefix,
     get_module_by_name_suffix,
     make_quant,
-    make_sure_no_tensor_in_meta_device,
     move_to_device,
     pack_model,
     simple_dispatch_model,
@@ -573,7 +573,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         quantize_config: BaseQuantizeConfig,
         max_memory: Optional[dict] = None,
         trust_remote_code: bool = False,
-        torch_dtype: torch.dtype = torch.float16,
+        torch_dtype: [str | torch.dtype] = "auto",
         **model_init_kwargs,
     ):
         """load un-quantized pretrained model to cpu"""
@@ -588,11 +588,17 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         torch.nn.init.uniform_ = skip
         torch.nn.init.normal_ = skip
 
-        # enforce some values despite user specified
-        model_init_kwargs["torch_dtype"] = torch_dtype
         model_init_kwargs["trust_remote_code"] = trust_remote_code
 
         config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **model_init_kwargs)
+
+        if torch_dtype == "auto":
+            torch_dtype = auto_dtype_from_config(config)
+        elif not isinstance(torch_dtype, torch.dtype):
+            raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
+
+        # enforce some values despite user specified
+        model_init_kwargs["torch_dtype"] = torch_dtype
 
         if config.model_type not in SUPPORTED_MODELS:
             raise TypeError(f"{config.model_type} isn't supported yet.")
@@ -617,12 +623,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 no_split_module_classes=[cls.layer_type],
                 dtype=model_init_kwargs["torch_dtype"],
             )
-            model_init_kwargs["low_cpu_mem_usage"] = True
-
             del model
         else:
             model_init_kwargs["device_map"] = None
-            model_init_kwargs["low_cpu_mem_usage"] = False
 
         torch.cuda.empty_cache()
 
@@ -649,10 +652,9 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         device_map: Optional[Union[str, Dict[str, Union[int, str]]]] = None,
         max_memory: Optional[dict] = None,
         device: Optional[Union[str, int]] = None,
-        low_cpu_mem_usage: bool = False,
-        use_triton: bool = False,
-        use_marlin: bool = False,
-        torch_dtype: Optional[torch.dtype] = None,
+        use_triton: bool = True,
+        use_marlin: bool = True,
+        torch_dtype: [str | torch.dtype] = "auto",
         use_cuda_fp16: bool = True,
         quantize_config: Optional[BaseQuantizeConfig] = None,
         model_basename: Optional[str] = None,
@@ -662,6 +664,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         disable_exllama: Optional[bool] = None,
         disable_exllamav2: bool = False,
         format: Optional[str | FORMAT] = None,
+        allow_unsafe_loading: Optional[bool] = False,
         **kwargs,
     ):
         """load quantized model from local disk"""
@@ -703,11 +706,16 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             disable_exllama = True
 
         # == step1: prepare configs and file names == #
-        config = AutoConfig.from_pretrained(
+        config: PretrainedConfig = AutoConfig.from_pretrained(
             model_name_or_path,
             trust_remote_code=trust_remote_code,
             **cached_file_kwargs,
         )
+
+        if torch_dtype == "auto":
+            torch_dtype = auto_dtype_from_config(config, quant_inference=True)
+        elif not isinstance(torch_dtype, torch.dtype):
+            raise ValueError(f"torch_dtype value of `{torch_dtype}` is not a torch.dtype instance.")
 
         if config.model_type not in SUPPORTED_MODELS:
             raise TypeError(f"{config.model_type} isn't supported yet.")
@@ -762,6 +770,17 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             **cached_file_kwargs,
         )
 
+        # bin files have security issues: disable loading by default
+        if ".bin" in resolved_archive_file:
+            if allow_unsafe_loading:
+                logger.warning(
+                    "There are security risks when loading tensors from .bin files. Make sure you are loading model only from a trusted source."
+                )
+            else:
+                raise RuntimeError(
+                    "Loading of unsafe .bin files are not allowed by default. Pass allow_unsafe_loading=True to bypass."
+                )
+
         quantize_config.model_file_base_name = true_model_basename
 
         model_save_name = resolved_archive_file  # In case a model is sharded, this would be `model.safetensors.index.json` which may later break.
@@ -769,9 +788,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         # == step2: convert model to gptq-model (replace Linear with QuantLinear) == #
         def skip(*args, **kwargs):
             pass
-
-        if torch_dtype is None:
-            torch_dtype = torch.float16
 
         if torch_dtype != torch.float16:
             logger.warning("Overriding use_cuda_fp16 to False since torch_dtype is not torch.float16.")
@@ -784,8 +800,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
         transformers.modeling_utils._init_weights = False
 
         init_contexts = [no_init_weights()]
-        if low_cpu_mem_usage:
-            init_contexts.append(accelerate.init_empty_weights(include_buffers=False))
 
         with ContextManagers(init_contexts):
             model = AutoModelForCausalLM.from_config(
@@ -854,17 +868,6 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
                 model,
                 max_memory=max_memory,
                 no_split_module_classes=[cls.layer_type],
-            )
-
-        if low_cpu_mem_usage:
-            make_sure_no_tensor_in_meta_device(
-                model,
-                use_triton,
-                quantize_config.desc_act,
-                quantize_config.group_size,
-                bits=quantize_config.bits,
-                disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
             )
 
         if use_marlin:
@@ -991,6 +994,7 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             return
 
         from ..nn_modules.qlinear.qlinear_tritonv2 import QuantLinear
+
         QuantLinear.warmup(self.model, seqlen=self.model.seqlen)
 
     def __getattr__(self, item):

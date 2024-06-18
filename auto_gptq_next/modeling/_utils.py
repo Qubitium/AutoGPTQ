@@ -10,14 +10,13 @@ import torch
 import torch.nn as nn
 import transformers
 from tqdm import tqdm
-from transformers import AutoConfig
+from transformers import AutoConfig, PretrainedConfig
 from transformers.utils.hub import cached_file
 
 from ..quantization import BaseQuantizeConfig
 from ..utils.import_utils import dynamically_import_QuantLinear
 from ..utils.modeling_utils import recurse_setattr
 from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH, SUPPORTED_MODELS
-
 
 logger = getLogger(__name__)
 handler = logging.StreamHandler()
@@ -457,30 +456,6 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
     return model
 
 
-def make_sure_no_tensor_in_meta_device(
-    model,
-    use_triton: bool,
-    desc_act: bool,
-    group_size: int,
-    bits: int,
-    disable_exllama: bool,
-    disable_exllamav2: bool,
-    use_marlin: bool = False,
-):
-    QuantLinear = dynamically_import_QuantLinear(
-        use_triton,
-        desc_act,
-        group_size,
-        bits=bits,
-        disable_exllama=disable_exllama,
-        disable_exllamav2=disable_exllamav2,
-        use_marlin=use_marlin,
-    )
-    for n, m in model.named_modules():
-        if isinstance(m, QuantLinear) and m.bias.device == torch.device("meta"):
-            m.register_buffer("bias", torch.zeros((m.outfeatures), dtype=torch.float16, device="cpu"))
-
-
 def get_checkpoints(
     model_name_or_path: str, extensions: List[str], possible_model_basenames: List[str], **cached_file_kwargs
 ):
@@ -552,8 +527,28 @@ def get_checkpoints(
     return False, resolved_archive_file, true_model_basename
 
 
+# return the most stable tensor dtype for quantization while minimizing vram
+def auto_dtype_from_config(config: PretrainedConfig, quant_inference: bool = False) -> torch.dtype:
+    # all the gptq inference kernels are float16 only
+    if quant_inference:
+        return torch.float16
+
+    dtype = getattr(config, "torch_dtype")
+    if not dtype or not isinstance(dtype, torch.dtype):
+        raise ValueError("Your model config.json does not have torch_dtype set. Please check for model " "corruption.")
+
+    if dtype == torch.float32:
+        return torch.bfloat16
+    elif dtype == torch.float16:
+        return torch.float16
+    else:
+        # up/down-cast everything else to bfloat16 if not already in bfloat16
+        return torch.bfloat16
+
+
 __all__ = [
     "get_device",
+    "auto_dtype_from_config",
     "move_to_device",
     "find_layers",
     "get_module_by_name_prefix",
@@ -563,7 +558,6 @@ __all__ = [
     "autogptq_post_init",
     "check_and_get_model_type",
     "simple_dispatch_model",
-    "make_sure_no_tensor_in_meta_device",
     "convert_gptq_v1_to_v2_format",
     "convert_gptq_v2_to_v1_format",
 ]
