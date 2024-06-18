@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..nn_modules.qlinear.qlinear_marlin import QuantLinear as MarlinQuantLinear
 from ..nn_modules.qlinear.qlinear_marlin import _get_perms, unpack_qzeros
-from ..quantization import FORMAT, BaseQuantizeConfig
+from ..quantization import FORMAT, QuantizeConfig
 from .marlin_sparse24_utils import repack_gptq_to_marlin_sparse24, repack_scales_to_marlin_sparse24
 from .modeling_utils import recurse_getattr, recurse_setattr
 
@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 def prepare_model_for_marlin_load(
     model,
-    quantize_config: BaseQuantizeConfig,
+    quantize_config: QuantizeConfig,
     quant_linear_class,
     torch_dtype,
     current_model_save_name,
@@ -79,7 +79,7 @@ def _validate_marlin_device_support() -> bool:
 
 
 # Adapted from https://github.com/rib-2/marlin/tree/conversion
-def _validate_marlin_compatibility(cfg: BaseQuantizeConfig):
+def _validate_marlin_compatibility(cfg: QuantizeConfig):
     if cfg.bits != 4 and cfg.bits != 8:
         return f"The quantized model uses a bitwidth different than 4 or 8 (found {cfg.bits})"
     if cfg.group_size != 128 and cfg.group_size != -1:
@@ -93,7 +93,7 @@ def _validate_marlin_compatibility(cfg: BaseQuantizeConfig):
 
 @torch.no_grad()
 def convert_to_marlin_original(
-    model, model_quantlinear, quantization_config: BaseQuantizeConfig, repack: bool, strict: bool = False
+    model, model_quantlinear, quantization_config: QuantizeConfig, repack: bool, strict: bool = False
 ):
     """
     Converts GPTQ-packed weights to the Marlin format. This assumes that the model already meets Marlin kernel constraints.
