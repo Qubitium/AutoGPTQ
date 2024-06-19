@@ -1,15 +1,18 @@
-from ._base import BaseGPTQForCausalLM
+from ._base import BaseGPTQModel
 
 
-class BloomGPTQ(BaseGPTQForCausalLM):
-    layer_type = "BloomBlock"
-    layers_block_name = "transformer.h"
-    outside_layer_modules = [
+class BloomGPTQ(BaseGPTQModel):
+    # non-layer (root) modules
+    non_layer_modules = [
         "transformer.word_embeddings",
         "transformer.word_embeddings_layernorm",
         "transformer.ln_f",
     ]
-    inside_layer_modules = [
+
+    # repeating layers
+    layers_node = "transformer.h"
+    layer_type = "BloomBlock"
+    layer_modules = [
         ["self_attention.query_key_value"],
         ["self_attention.dense"],
         ["mlp.dense_h_to_4h"],

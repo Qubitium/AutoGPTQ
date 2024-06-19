@@ -15,7 +15,7 @@
 
 ## How is AutoGPTQ-NEXT different from AutoGPTQ?
 
-AutoGPTQ-NEXT is an opinionated fork of AugtoGPTQ with latest bug fixes applied, new features, better/latest model support, and an guranteed from the ModelCloud.ai team and that we, along with the open-source ML community, will take every effort to bring the library up-to-date with latest advancements, model support, and bug fixes.
+AutoGPTQ-NEXT is an opinionated fork/refractor of AugtoGPTQ with latest bug fixes applied, new features, better/latest model support, and a pledge from the ModelCloud.ai team and that we, along with the open-source ML community, will take every effort to bring the library up-to-date with latest advancements, model support, and bug fixes.
 
 ## Mission Statement
 
@@ -30,7 +30,9 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 * Better default PPL with tweaked internal code (Result may vary depending on calibration set and gpu usage).
 * Removed non-working, partially working, or fully deprecated features: Peft, ROCM, AWQ Gemm inference, Triton v1 (replaced by v2), Fused Attention (Replaced by Marlin/Exllama).
 * Fixed Packing Performance regression on high core-count systems.
-* Thousands of lines of refractor/cleanup. 
+* Thousands of lines of refractor/cleanup.
+* Debloated 271K lines of which 250K was caused by a single dataset used only by an example. Move dataset to HF.
+* Shorter and more concise public api/internal vars. No need to copy bloated HF style for class names. 
 * Complete tests with every feature and model tested. Everything that does not pass tests will be removed from repo. We want quality over quantity.
 
 ## Roadmap (Target Date: July 2024):
@@ -41,7 +43,10 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 * Add Qbits (cpu inference) support from Intel/Qbits.
 * Add back ROCM/AMD support once verything is validated.
 * Store quant loss stat and apply diffs to new quant for quality control.
-* Alert users of non-optimal calibration data.
+* Alert users of non-optimal calibration data. Almost all new-users get this part horribly wrong. 
+* Add CI workflow for PRs.
+* Add Tests for every single supported model.
+
 
 ## Model Support 
 
@@ -134,33 +139,8 @@ print(tokenizer.decode(model.generate(**tokenizer("auto_gptq_next is", return_te
 For more advanced features of model quantization, please reference to [this script](examples/quantization/quant_with_alpaca.py)
 
 ### How to Add Support for a New Model
-Below is an example to add support for `OPT` model. Use this as guide for future model support PRs:
 
-```py
-from auto_gptq_next.models import BaseGPTQForCausalLM
-
-class OPTGPTQForCausalLM(BaseGPTQForCausalLM):
-    # name of transformer layer block
-    layers_block_name = "model.decoder.layers"
-    # names of other nn modules that in the same level as the transformer layer block
-    outside_layer_modules = [
-        "model.decoder.embed_tokens", "model.decoder.embed_positions", "model.decoder.project_out",
-        "model.decoder.project_in", "model.decoder.final_layer_norm"
-    ]
-    # names of linear layers in transformer layer module
-    # normally, there are four sub lists, for each one the modules in it can be seen as one operation,
-    # and the order should be the order when they are truly executed, in this case (and usually in most cases),
-    # they are: attention q_k_v projection, attention output projection, MLP project input, MLP project output
-    inside_layer_modules = [
-        ["self_attn.k_proj", "self_attn.v_proj", "self_attn.q_proj"],
-        ["self_attn.out_proj"],
-        ["fc1"],
-        ["fc2"]
-    ]
-```
-After this, you can use `OPTGPTQForCausalLM.from_pretrained` and other methods as shown in Basic.
-
-</details>
+Read the `auto_gptq_next/models/llama.py` code which explains in detail via comments how the model support is defined. Use it as guide to PR for to new models. Most models follow the same pattern.
 
 ### Evaluation on Downstream Tasks
 

@@ -1,11 +1,12 @@
-from ._base import BaseGPTQForCausalLM
+from ._base import BaseGPTQModel
 
 
-class GPT2GPTQ(BaseGPTQForCausalLM):
+class GPT2GPTQ(BaseGPTQModel):
+    non_layer_modules = ["transformer.wte", "transformer.wpe", "transformer.ln_f"]
+
+    layers_node = "transformer.h"
     layer_type = "GPT2Block"
-    layers_block_name = "transformer.h"
-    outside_layer_modules = ["transformer.wte", "transformer.wpe", "transformer.ln_f"]
-    inside_layer_modules = [
+    layer_modules = [
         ["attn.c_attn"],
         ["attn.c_proj"],
         ["mlp.c_fc"],
