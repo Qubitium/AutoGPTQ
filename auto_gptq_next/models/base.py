@@ -17,8 +17,8 @@ from transformers.utils.generic import ContextManagers
 from transformers.utils.hub import PushToHubMixin
 
 from ..quantization import GPTQ, QuantizeConfig
-from ..quantization.config import (FORMAT, FORMAT_FIELD_JSON, META_FIELD_QUANTIZER, META_QUANTIZER_AUTOGPTQ,
-                                   MIN_VERSION_WITH_V2, QUANTIZE_BLACK_LIST, BaseQuantizeConfig)
+from ..quantization.config import (FORMAT, FORMAT_FIELD_JSON, META_FIELD_QUANTIZER,
+                                   META_QUANTIZER_AUTOGPTQ, MIN_VERSION_WITH_V2, QUANTIZE_BLACK_LIST)
 from ..utils.data import collate_data
 from ..utils.importer import dynamically_import_QuantLinear
 from ..utils.marlin import (_validate_marlin_compatibility,
@@ -27,7 +27,7 @@ from ..version import __version__
 from ._const import CPU, CUDA_0, SUPPORTED_MODELS
 from ..utils.model import (auto_dtype_from_config, autogptq_next_post_init, convert_gptq_v1_to_v2_format,
                      convert_gptq_v2_to_v1_format, find_layers, get_checkpoints, get_device, get_module_by_name_prefix,
-                     get_module_by_name_suffix, make_quant, move_to, pack_model, simple_dispatch_model)
+                     get_module_by_name_suffix, make_quant, move_to, nested_move_to, pack_model, simple_dispatch_model)
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
@@ -38,13 +38,7 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 
-def nested_move_to_device(v, device):
-    if isinstance(v, torch.Tensor):
-        return move_to(v, device)
-    elif isinstance(v, (list, tuple)):
-        return type(v)([nested_move_to_device(e, device) for e in v])
-    else:
-        return v
+
 
 
 class BaseGPTQModel(nn.Module, PushToHubMixin):
@@ -228,7 +222,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 v,
             ) in kwargs.items():  # make sure other arguments also be captured
                 if k not in ["hidden_states", "attention_mask", "position_ids"]:
-                    one_kwargs[k] = nested_move_to_device(v, data_device)
+                    one_kwargs[k] = nested_move_to(v, data_device)
             layer_input_kwargs.append(one_kwargs)
             raise ValueError
 
@@ -326,7 +320,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                     if layer_position_ids is not None:
                         additional_layer_inputs["position_ids"] = layer_position_ids
                     for k, v in layer_input_kwargs[j].items():
-                        additional_layer_inputs[k] = nested_move_to_device(v, cur_layer_device)
+                        additional_layer_inputs[k] = nested_move_to(v, cur_layer_device)
                     layer(*layer_input, **additional_layer_inputs)
                 for h in handles:
                     h.remove()
@@ -377,7 +371,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 if layer_position_ids is not None:
                     additional_layer_inputs["position_ids"] = layer_position_ids
                 for k, v in layer_input_kwargs[j].items():
-                    additional_layer_inputs[k] = nested_move_to_device(v, cur_layer_device)
+                    additional_layer_inputs[k] = nested_move_to(v, cur_layer_device)
                 layer_output = move_to(
                     layer(*layer_input, **additional_layer_inputs)[0],
                     cur_layer_device if calibration_enable_gpu_cache else CPU,
@@ -449,7 +443,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         self,
         save_dir: str,
         safetensors_metadata: Optional[Dict[str, str]] = None,
-        format: Optional[str] = None,
+        format: Optional[FORMAT] = None,
         use_safetensors: bool = True,
     ):
         """save quantized model and configs to local disk"""
@@ -657,7 +651,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
             model.seqlen = 4096
         model.eval()
 
-        return cls(model, False, quantize_config)
+        return cls(model, quantized=False, quantize_config=quantize_config)
 
     @classmethod
     def from_quantized(
@@ -675,20 +669,11 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         use_safetensors: bool = True,
         trust_remote_code: bool = False,
         warmup_triton: bool = False,
-        disable_exllama: Optional[bool] = None,
-        disable_exllamav2: bool = False,
-        format: Optional[str | FORMAT] = None,
-        allow_unsafe_loading: Optional[bool] = False,
+        disable_exllama: bool = False,
+        format: Optional[FORMAT] = None,
+        allow_unsafe_loading: bool = False,
         **kwargs,
     ):
-        """load quantized model from local disk"""
-        # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
-        if disable_exllama is None:
-            if disable_exllamav2:
-                disable_exllama = False
-            else:
-                disable_exllama = True
-
         # Parameters related to loading from Hugging Face Hub
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
@@ -712,12 +697,6 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
             "_raise_exceptions_for_missing_entries": False,
             "_commit_hash": commit_hash,
         }
-
-        if not disable_exllamav2 and not disable_exllama:
-            logger.warning(
-                "You have activated both exllama and exllamav2 kernel. Setting disable_exllama to True and keeping disable_exllamav2 to False"
-            )
-            disable_exllama = True
 
         # == step1: prepare configs and file names == #
         config: PretrainedConfig = AutoConfig.from_pretrained(
@@ -843,7 +822,6 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 quantize_config.group_size,
                 use_triton=use_triton,
                 disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
                 use_cuda_fp16=use_cuda_fp16,
                 desc_act=quantize_config.desc_act,
                 use_marlin=quantize_config.format == FORMAT.MARLIN,
@@ -915,7 +893,6 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 group_size=quantize_config.group_size,
                 bits=quantize_config.bits,
                 disable_exllama=disable_exllama,
-                disable_exllamav2=disable_exllamav2,
                 use_marlin=False,
             )
 
@@ -950,7 +927,6 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
             group_size=quantize_config.group_size,
             bits=quantize_config.bits,
             disable_exllama=disable_exllama,
-            disable_exllamav2=disable_exllamav2,
             use_marlin=use_marlin,
         )
 
@@ -997,8 +973,8 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
 
         return cls(
             model,
-            True,
-            quantize_config,
+            quantized=True,
+            quantize_config=quantize_config,
             is_triton_backend=use_triton,
             qlinear_kernel=qlinear_kernel,
         )
@@ -1018,4 +994,4 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
             return getattr(self.model, item)
 
 
-__all__ = ["BaseGPTQModel", "BaseQuantizeConfig", "QuantizeConfig"]
+__all__ = ["BaseGPTQModel"]
