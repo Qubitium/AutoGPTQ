@@ -29,9 +29,6 @@ from ._utils import (auto_dtype_from_config, autogptq_next_post_init, convert_gp
                      convert_gptq_v2_to_v1_format, find_layers, get_checkpoints, get_device, get_module_by_name_prefix,
                      get_module_by_name_suffix, make_quant, move_to_device, pack_model, simple_dispatch_model)
 
-MIN_EXAMPLES_SIZE = 256
-MIN_EXAMPLES_INPUT_ID_AVG_LENGTH = 256
-
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
@@ -95,9 +92,9 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
     def hf_device_map(self):
         return getattr(self.model, "hf_device_map", None)
 
-    def _prepare_examples_for_quantization(
+    def _prepare_dataset_for_quantization(
         self,
-        examples: List[Dict[str, Union[List[int], torch.LongTensor]]],
+        calibration_dataset: List[Dict[str, Union[List[int], torch.LongTensor]]],
         batch_size: int = 1,
     ):
         def _convert_tensor_to_list(tensor):
@@ -108,8 +105,8 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 return tensor.cpu().numpy().tolist()
             return [tensor]
 
-        new_examples = []
-        for example in examples:
+        new_calibration_dataset = []
+        for example in calibration_dataset:
             input_ids = _convert_tensor_to_list(example["input_ids"])
             attention_mask = _convert_tensor_to_list(example["attention_mask"])
             if "labels" in example:
@@ -120,7 +117,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                 labels = _convert_tensor_to_list(example["label_ids"])
             else:
                 labels = copy.deepcopy(input_ids)
-            new_examples.append(
+            new_calibration_dataset.append(
                 {
                     "input_ids": input_ids,
                     "attention_mask": attention_mask,
@@ -131,24 +128,24 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         if not pad_token_id:
             pad_token_id = self.config.eos_token_id
 
-        new_examples = [
-            collate_data(new_examples[start : start + batch_size], pad_token_id)
-            for start in range(0, len(new_examples), batch_size)
+        new_calibration_dataset = [
+            collate_data(new_calibration_dataset[start : start + batch_size], pad_token_id)
+            for start in range(0, len(new_calibration_dataset), batch_size)
         ]
-        for new_example in new_examples:
+        for new_example in new_calibration_dataset:
             del new_example["labels"]
 
-        return new_examples
+        return new_calibration_dataset
 
     @torch.inference_mode()
     def quantize(
         self,
-        examples: List[Dict[str, Union[List[int], torch.LongTensor]]],
+        calibration_dataset: List[Dict[str, Union[List[int], torch.LongTensor]]],
         batch_size: int = 1,
         use_triton: bool = False,
         use_cuda_fp16: bool = True,
         autotune_warmup_after_quantized: bool = False,
-        cache_examples_on_gpu: bool = True,
+        calibration_enable_gpu_cache: bool = True,
     ):
         if self.quantized:
             raise EnvironmentError("quantize() is called a model that is already quantized")
@@ -162,23 +159,26 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         if self.quantize_config.lm_head:
             raise ValueError("lm_head quantization is currently inference only and not applicable for quantization. Please set `lm_head=False`.")
 
-        if len(examples) == 0:
+        if len(calibration_dataset) == 0:
             raise ValueError("Calibration dataset must not be empty.")
 
-        if len(examples) < MIN_EXAMPLES_SIZE:
-            logger.warning(f"Calibration dataset size should be greater than {MIN_EXAMPLES_SIZE}. "
-                             f"Current size: {len(examples)}.")
+        MIN_CALIBRATION_DATASET_SIZE = 256
+        MIN_CALIBRATION_DATASET_INPUT_IDS_AVG_LENGTH = 256
+
+        if len(calibration_dataset) < MIN_CALIBRATION_DATASET_SIZE:
+            logger.warning(f"Calibration dataset size should be greater than {MIN_CALIBRATION_DATASET_SIZE}. "
+                             f"Current size: {len(calibration_dataset)}.")
 
         # Calculate the average length of the average input_ids
         total_input_ids_length = 0
-        for e in examples:
+        for e in calibration_dataset:
             input_ids_length = len(e["input_ids"])
             total_input_ids_length += input_ids_length
-        avg = total_input_ids_length / len(examples)
+        avg = total_input_ids_length / len(calibration_dataset)
 
-        if avg < MIN_EXAMPLES_INPUT_ID_AVG_LENGTH:
-            logger.warning(f"The average length of input_ids of examples should be greater than "
-                             f"{MIN_EXAMPLES_INPUT_ID_AVG_LENGTH}! Current AVG is {avg}.")
+        if avg < MIN_CALIBRATION_DATASET_INPUT_IDS_AVG_LENGTH:
+            logger.warning(f"The average length of input_ids of calibration_dataset should be greater than "
+                             f"{MIN_CALIBRATION_DATASET_INPUT_IDS_AVG_LENGTH}! Current AVG is {avg}.")
 
         device_map = self.hf_device_map
         if device_map:
@@ -195,16 +195,16 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         layer_input_kwargs = []
         layer_outputs = []
 
-        examples = self._prepare_examples_for_quantization(examples, batch_size)
+        calibration_dataset = self._prepare_dataset_for_quantization(calibration_dataset, batch_size)
 
         forward_pass_use_cache = self.model.config.use_cache
         self.model.config.use_cache = False
 
-        num_batches = len(examples)
+        num_batches = len(calibration_dataset)
         layers = get_module_by_name_prefix(self.model, self.layers_node)
 
         cur_layer_device = get_device(layers[0])
-        data_device = cur_layer_device if cache_examples_on_gpu else CPU
+        data_device = cur_layer_device if calibration_enable_gpu_cache else CPU
 
         def store_input_hook(_, args, kwargs):
             # Positional arguments.
@@ -250,7 +250,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
 
         # TODO: make this optional, backporting https://github.com/huggingface/optimum/blob/main/optimum/gptq/quantizer.py
         handle = layers[0].register_forward_pre_hook(store_input_hook, with_kwargs=True)
-        for example in examples:
+        for example in calibration_dataset:
             for k, v in example.items():
                 if len(v.shape) == 1:
                     v = v.unsqueeze(0)
@@ -376,7 +376,7 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
                     additional_layer_inputs[k] = nested_move_to_device(v, cur_layer_device)
                 layer_output = move_to_device(
                     layer(*layer_input, **additional_layer_inputs)[0],
-                    cur_layer_device if cache_examples_on_gpu else CPU,
+                    cur_layer_device if calibration_enable_gpu_cache else CPU,
                 )
                 layer_outputs.append([layer_output])
 
