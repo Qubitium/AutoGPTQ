@@ -28,6 +28,7 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 * ChatGLM Model Support.
 * Better defaults resulting in faster inference.
 * Better default PPL with tweaked internal code (Result may vary depending on calibration set and gpu usage).
+* Alert users of sub-optimal calibration data. Almost all new-users get this part horribly wrong.
 * Removed non-working, partially working, or fully deprecated features: Peft, ROCM, AWQ Gemm inference, Triton v1 (replaced by v2), Fused Attention (Replaced by Marlin/Exllama).
 * Fixed Packing Performance regression on high core-count systems.
 * Thousands of lines of refractor/cleanup.
@@ -43,7 +44,6 @@ We want AutoGPTQ-NEXT to be highy focused on GPTQ based quantization and target 
 * Add Qbits (cpu inference) support from Intel/Qbits.
 * Add back ROCM/AMD support once verything is validated.
 * Store quant loss stat and apply diffs to new quant for quality control.
-* Alert users of non-optimal calibration data. Almost all new-users get this part horribly wrong. 
 * Add CI workflow for PRs.
 * Add Tests for every single supported model.
 
@@ -102,7 +102,7 @@ pretrained_model_dir = "facebook/opt-125m"
 quant_output_dir = "opt-125m-4bit"
 
 tokenizer = AutoTokenizer.from_pretrained(pretrained_model_dir, use_fast=True)
-examples = [
+calibration_dataset = [
     tokenizer(
         "The world is a wonderful place full of beauty and love."
     )
@@ -116,8 +116,8 @@ quant_config = QuantizeConfig(
 # load un-quantized model, by default, the model will always be loaded into CPU memory
 model = AutoGPTQNext.from_pretrained(pretrained_model_dir, quant_config)
 
-# quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask"
-model.quantize(examples)
+# quantize model, the calibration_dataset should be list of dict whose keys can only be "input_ids" and "attention_mask"
+model.quantize(calibration_dataset)
 
 # save quantized model
 model.save_quantized(quant_output_dir)

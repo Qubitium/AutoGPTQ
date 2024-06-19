@@ -14,8 +14,8 @@ from transformers import AutoConfig, PretrainedConfig
 from transformers.utils.hub import cached_file
 
 from ..quantization import QuantizeConfig
-from ..utils.import_utils import dynamically_import_QuantLinear, dynamically_import_QuantLinear_base
-from ..utils.modeling_utils import recurse_setattr
+from ..utils.importer import dynamically_import_QuantLinear_base
+from ..utils.model import recurse_setattr
 from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH, SUPPORTED_MODELS
 
 logger = getLogger(__name__)
@@ -230,6 +230,7 @@ def pack_model(
         use_cuda_fp16=use_cuda_fp16,
         desc_act=desc_act,
         disable_exllama=False,
+        disable_exllamav2=True,
         use_marlin=use_marlin,
     )
     qlayers = find_layers(model, [QuantLinear])
