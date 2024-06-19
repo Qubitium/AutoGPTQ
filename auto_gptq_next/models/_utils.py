@@ -14,7 +14,7 @@ from transformers import AutoConfig, PretrainedConfig
 from transformers.utils.hub import cached_file
 
 from ..quantization import QuantizeConfig
-from ..utils.importer import dynamically_import_QuantLinear_base
+from ..utils.importer import dynamically_import_QuantLinear, dynamically_import_QuantLinear_base
 from ..utils.model import recurse_setattr
 from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH, SUPPORTED_MODELS
 
