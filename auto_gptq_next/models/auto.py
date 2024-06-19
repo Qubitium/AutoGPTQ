@@ -1,5 +1,5 @@
 from inspect import signature
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 
 from .base import BaseGPTQModel, QuantizeConfig
 from ._utils import check_and_get_model_type
@@ -31,7 +31,7 @@ from .starcoder2 import Starcoder2GPTQ
 from .xverse import XverseGPTQ
 from .yi import YiGPTQ
 
-MODEL_MAP = {
+MODEL_MAP: Dict[str, BaseGPTQModel] = {
     "bloom": BloomGPTQ,
     "gpt_neox": GPTNeoXGPTQ,
     "gptj": GPTJGPTQ,
@@ -62,6 +62,8 @@ MODEL_MAP = {
     "phi": PhiGPTQ,
     "mpt": MPTGPTQ,
 }
+
+SUPPORTED_MODELS: List[str] = list(MODEL_MAP.keys())
 
 
 class AutoGPTQNext:
