@@ -29,6 +29,9 @@ from ._utils import (auto_dtype_from_config, autogptq_next_post_init, convert_gp
                      convert_gptq_v2_to_v1_format, find_layers, get_checkpoints, get_device, get_module_by_name_prefix,
                      get_module_by_name_suffix, make_quant, move_to_device, pack_model, simple_dispatch_model)
 
+MIN_EXAMPLES_SIZE = 256
+MIN_EXAMPLES_INPUT_ID_AVG_LENGTH = 256
+
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
@@ -158,6 +161,21 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
         # TODO: lm_head quantization is yet ready but pending
         if self.quantize_config.lm_head:
             raise ValueError("lm_head quantization is currently inference only and not applicable for quantization. Please set `lm_head=False`.")
+
+        if len(examples) < MIN_EXAMPLES_SIZE:
+            logger.warning(f"The number of examples should be greater than {MIN_EXAMPLES_SIZE}! "
+                             f"Current size is {len(examples)}.")
+
+        # Calculate the average length of the average input_ids
+        total_input_ids_length = 0
+        for e in examples:
+            input_ids_length = len(e["input_ids"])
+            total_input_ids_length += input_ids_length
+        avg = total_input_ids_length / len(examples)
+
+        if avg < MIN_EXAMPLES_INPUT_ID_AVG_LENGTH:
+            logger.warning(f"The average length of input_ids of examples should be greater than "
+                             f"{MIN_EXAMPLES_INPUT_ID_AVG_LENGTH}! Current AVG is {avg}.")
 
         device_map = self.hf_device_map
         if device_map:
