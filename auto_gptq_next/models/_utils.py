@@ -230,7 +230,6 @@ def pack_model(
         use_cuda_fp16=use_cuda_fp16,
         desc_act=desc_act,
         disable_exllama=False,
-        disable_exllamav2=True,
         use_marlin=use_marlin,
     )
     qlayers = find_layers(model, [QuantLinear])
