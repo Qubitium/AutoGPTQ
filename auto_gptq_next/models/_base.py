@@ -163,11 +163,11 @@ class BaseGPTQModel(nn.Module, PushToHubMixin):
             raise ValueError("lm_head quantization is currently inference only and not applicable for quantization. Please set `lm_head=False`.")
 
         if len(examples) == 0:
-            raise ValueError("examples cannot be an empty list!")
+            raise ValueError("Calibration dataset must not be empty.")
 
         if len(examples) < MIN_EXAMPLES_SIZE:
-            logger.warning(f"The size of examples should be greater than {MIN_EXAMPLES_SIZE}! "
-                             f"Current size is {len(examples)}.")
+            logger.warning(f"Calibration dataset size should be greater than {MIN_EXAMPLES_SIZE}. "
+                             f"Current size: {len(examples)}.")
 
         # Calculate the average length of the average input_ids
         total_input_ids_length = 0
