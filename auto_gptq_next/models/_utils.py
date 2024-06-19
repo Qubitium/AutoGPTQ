@@ -16,8 +16,7 @@ from transformers.utils.hub import cached_file
 from ..quantization import QuantizeConfig
 from ..utils.importer import dynamically_import_QuantLinear
 from ..utils.model import recurse_setattr
-from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH
-from .auto import SUPPORTED_MODELS
+from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH, SUPPORTED_MODELS
 
 logger = getLogger(__name__)
 handler = logging.StreamHandler()
