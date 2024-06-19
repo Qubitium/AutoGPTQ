@@ -50,7 +50,7 @@ def dynamically_import_QuantLinear(
         desc_act=desc_act,
         group_size=group_size,
         bits=bits,
-        disable_exllama=False,
+        disable_exllama=True,
         disable_exllamav2=disable_exllama,
         use_marlin=use_marlin,
     )
