@@ -1,7 +1,7 @@
 from inspect import signature
 from typing import Dict, Optional, Union
 
-from ._base import BaseGPTQForCausalLM, QuantizeConfig
+from ._base import BaseGPTQModel, QuantizeConfig
 from ._utils import check_and_get_model_type
 from .baichuan import BaiChuanGPTQ
 from .bloom import BloomGPTQ
@@ -80,7 +80,7 @@ class AutoGPTQNext:
         max_memory: Optional[dict] = None,
         trust_remote_code: bool = False,
         **model_init_kwargs,
-    ) -> BaseGPTQForCausalLM:
+    ) -> BaseGPTQModel:
         model_type = check_and_get_model_type(pretrained_model_name_or_path, trust_remote_code)
         return MODEL_MAP[model_type].from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -107,7 +107,7 @@ class AutoGPTQNext:
         disable_exllama: bool = False,
         use_marlin: bool = False,
         **kwargs,
-    ) -> BaseGPTQForCausalLM:
+    ) -> BaseGPTQModel:
 
         model_type = check_and_get_model_type(model_name_or_path, trust_remote_code)
         quant_func = MODEL_MAP[model_type].from_quantized
