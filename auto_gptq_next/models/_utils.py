@@ -84,6 +84,7 @@ def make_quant(
         bits=bits,
         use_marlin=use_marlin,
         disable_exllama=disable_exllama,
+        disable_exllamav2=True,
     )
 
     if isinstance(module, QuantLinear):
