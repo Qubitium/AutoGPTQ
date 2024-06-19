@@ -14,7 +14,7 @@ from transformers import AutoConfig, PretrainedConfig
 from transformers.utils.hub import cached_file
 
 from ..quantization import QuantizeConfig
-from ..utils.import_utils import dynamically_import_QuantLinear, dynamically_import_QuantLinear_for_packing
+from ..utils.import_utils import dynamically_import_QuantLinear, dynamically_import_QuantLinear_base
 from ..utils.modeling_utils import recurse_setattr
 from ._const import CPU, CUDA_0, EXLLAMA_DEFAULT_MAX_INPUT_LENGTH, SUPPORTED_MODELS
 
@@ -205,7 +205,7 @@ def pack_model(
     force_layer_back_to_cpu: bool = False,
     use_marlin: bool = False,
 ):
-    QuantLinear = dynamically_import_QuantLinear_for_packing(
+    QuantLinear = dynamically_import_QuantLinear_base(
         use_triton=use_triton,
         desc_act=desc_act,
         group_size=group_size,
