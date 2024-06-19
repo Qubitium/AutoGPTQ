@@ -211,6 +211,7 @@ def pack_model(
         group_size=group_size,
         bits=bits,
         disable_exllama=False,
+        disable_exllamav2=True,
         use_marlin=use_marlin,
     )
 

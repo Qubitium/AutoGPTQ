@@ -33,18 +33,19 @@ def dynamically_import_QuantLinear_for_packing(
         desc_act: bool,
         group_size: int,
         bits: int,
-        disable_exllama: Optional[bool] = None,
-        disable_exllamav2: bool = False,
+        disable_exllama: bool = False,
+        disable_exllamav2: bool = True,
         use_marlin: bool = False,
 ):
-    if disable_exllama is None:
-        disable_exllama = not disable_exllamav2
+    if bits == 4 and not disable_exllama:  # only use exllama(v1) for packing
+        from ..nn_modules.qlinear.qlinear_exllama import QuantLinear
+        return QuantLinear
 
     return dynamically_import_QuantLinear(
         use_triton=use_triton,
         desc_act=desc_act,
         group_size=group_size,
         bits=bits,
-        disable_exllama=disable_exllama,
+        disable_exllama=disable_exllamav2,
         use_marlin=use_marlin,
     )
